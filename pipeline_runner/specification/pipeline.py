@@ -47,7 +47,7 @@ class Pipeline(AbstractPipelineElement):
 
         # LIST OF LOADING STAGES PARSED AS PYTHON OBJECTS
         loading_stages_parsed: List[AbstractReadStage] = []
-        self._logger.info(f"Identified {len(original_loading_stages)} reading steps within pipeline {self.name} ({self.description})")
+        self._logger.info(f"Identified {len(original_loading_stages)} reading steps within pipeline {self._name} ({self._description})")
         for stage_index, loading_stage in enumerate(original_loading_stages):
 
             # PARSE EACH LOADING STAGE FROM A SIMPLE DICT TO A PYTHON OBJECT DEPENDING ON "source_type"
@@ -55,9 +55,9 @@ class Pipeline(AbstractPipelineElement):
             self._logger.info(f"Starting to parse loading stage # {stage_index} (source_type = '{source_type_lc}')")
             loading_stage_parsed: AbstractReadStage = SOURCE_TYPE_DICT[source_type_lc].from_dict(loading_stage)
             self._logger.info(f"Successfully parsed loading stage # {stage_index} (source_type = '{source_type_lc}', "
-                              f"name = '{loading_stage_parsed.name}', "
-                              f"description = '{loading_stage_parsed.description}', "
-                              f"source_id = '{loading_stage_parsed.dataframe_id}')")
+                              f"name = '{loading_stage_parsed._name}', "
+                              f"description = '{loading_stage_parsed._description}', "
+                              f"source_id = '{loading_stage_parsed._dataframe_id}')")
 
             # ADD TO LIST OF LOADING STAGES
             loading_stages_parsed.append(loading_stage_parsed)
@@ -68,7 +68,7 @@ class Pipeline(AbstractPipelineElement):
     def run(self):
 
         sources_dict: Dict[str, DataFrame] = {}
-        self._logger.info(f"Kicking off pipeline '{self.name}' ('{self.description}')")
+        self._logger.info(f"Kicking off pipeline '{self._name}' ('{self._description}')")
 
         # PARSE LOADING_STAGES (IF PRESENT)
         if "read_steps" in list(self._pipeline_steps.keys()):
@@ -77,41 +77,41 @@ class Pipeline(AbstractPipelineElement):
             for loading_stage_index, loading_stage in enumerate(loading_stages):
 
                 self._logger.info(f"Starting loading stage # {loading_stage_index} (source_type = '{loading_stage.source_type}', "
-                                  f"name = '{loading_stage.name}', "
-                                  f"description = '{loading_stage.description}', "
-                                  f"source_id = '{loading_stage.dataframe_id}')")
+                                  f"name = '{loading_stage._name}', "
+                                  f"description = '{loading_stage._description}', "
+                                  f"source_id = '{loading_stage._dataframe_id}')")
 
                 # RUN EACH STAGE
                 df_id, loaded_df = loading_stage.load(self._spark_session)
 
                 self._logger.info(f"Successfully executed loading stage # {loading_stage_index} (source_type = '{loading_stage.source_type}', "
-                                  f"name = '{loading_stage.name}', "
-                                  f"description = '{loading_stage.description}', "
-                                  f"source_id = '{loading_stage.dataframe_id}')")
+                                  f"name = '{loading_stage._name}', "
+                                  f"description = '{loading_stage._description}', "
+                                  f"source_id = '{loading_stage._dataframe_id}')")
 
                 # SAVE THE RESULT IN A dict
                 sources_dict.update(df_id=loaded_df)
 
         else:
 
-            self._logger.warning(f"No loading stages defined within pipeline '{self.name}' ('{self.description}')")
+            self._logger.warning(f"No loading stages defined within pipeline '{self._name}' ('{self._description}')")
 
         if "create_steps" in (list(self._pipeline_steps.keys())):
 
             raw_create_steps: List[dict] = self._pipeline_steps["create_steps"]
-            self._logger.info(f"Identified {len(raw_create_steps)} create step(s) within pipeline '{self.name}' ({self.description})")
+            self._logger.info(f"Identified {len(raw_create_steps)} create step(s) within pipeline '{self._name}' ({self._description})")
 
             for index, raw_create_step in enumerate(raw_create_steps):
 
                 create_step = CreateStep.from_dict(raw_create_step)
                 self._logger.info(f"Successfully initialized create step # {index} "
-                                  f"('{create_step.name}', "
-                                  f"description = '{create_step.description}')")
+                                  f"('{create_step._name}', "
+                                  f"description = '{create_step._description}')")
 
                 spark_df: DataFrame = self._spark_session.createDataFrame(create_step.create())
 
                 self._logger.info(f"Successfully created pyspark.sql.DataFrame related to create step # {index} "
-                                  f"('{create_step.name}', "
-                                  f"description = '{create_step.description}'). Related dataFrameId = '{create_step.dataframe_id}'")
+                                  f"('{create_step._name}', "
+                                  f"description = '{create_step._description}'). Related dataFrameId = '{create_step._dataframe_id}'")
 
-                sources_dict.update({create_step.dataframe_id})
+                sources_dict.update({create_step._dataframe_id})

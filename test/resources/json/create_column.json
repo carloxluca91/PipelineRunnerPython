@@ -1,11 +1,9 @@
 {
-	"columns": [
+	"dataframe_columns": [
 		{
-			"name": "c1",
+			"name": "ts_inserimento",
 			"description": "First Df column",
 			"column_type": "timestamp",
-			"nullable": true,
-			"nullable_probability": 0.01,
 			"column_number": 1,
 			"metadata": {
 				"lower_bound": "1950-01-01 00:00:00",
@@ -14,20 +12,20 @@
 			}
 		},
 		{
-			"name": "c2",
+			"name": "dt_inserimento",
 			"description": "Second Df column",
-			"column_type": "timestamp",
+			"column_type": "date",
+			"column_number": 2,
 			"nullable": false,
 			"nullable_probability": null,
-			"column_number": 2,
 			"metadata": {
-				"lower_bound": "1950-01-01 00:00:00",
+				"lower_bound": "1950-01-01",
 				"upper_bound": null,
-				"output_format": "yyyy/MM/dd HH:mm:ss"
+				"output_format": "yyyy_MM_dd"
 			}
 		},
 		{
-			"name": "c3",
+			"name": "ts_aggiornamento",
 			"description": "Third Df column",
 			"column_type": "timestamp",
 			"nullable": false,
@@ -37,41 +35,47 @@
 				"lower_bound": "1950-01-01 00:00:00",
 				"upper_bound": "2019-12-31 23:59:59",
 				"output_format": "yyyy/MM/dd HH:mm:ss",
-				"tamper": true,
-				"tamper_probability": 0.1,
-				"tamper_format": "dd-MM-yyyy HH.mm.ss"
+				"corrupt_flag": true,
+				"corrupt_probability": 0.1,
+				"corrupt_format": "dd-MM-yyyy HH.mm.ss"
 			}
 		},
 		{
-			"name": "c4",
+			"name": "dt_aggiornamento",
 			"description": "Fourth Df column",
-			"column_type": "timestamp",
+			"column_type": "date",
 			"nullable": true,
 			"nullable_probability": 0.01,
 			"column_number": 4,
 			"metadata": {
-				"lower_bound": "1950-01-01 00:00:00",
-				"upper_bound": "2019-12-31 23:59:59",
-				"output_format": "yyyy/MM/dd HH:mm:ss",
-				"tamper": true,
-				"tamper_probability": 0.01,
-				"tamper_format": "dd-MM-yyyy HH.mm.ss"
+				"lower_bound": "1950-01-01",
+				"upper_bound": "1999-12-31",
+				"output_format": "yyyy/MM/dd",
+				"corrupt_flag": true,
+				"corrupt_probability": 0.01,
+				"corrupt_format": "dd_MM_yyyy"
 			}
 		},
 		{
-			"name": "c5",
-			"description": " Df column",
+			"name": "cd_istituto",
+			"description": "Fifth Df column",
 			"column_type": "string",
 			"nullable": true,
 			"nullable_probability": 0.01,
-			"column_number": 4,
+			"column_number": 5,
 			"metadata": {
 				"values": [
-					"a",
-					"b",
-					"c"
+					1,
+					27,
+					94,
+					95
 				],
-				"p": null
+				"p": [
+					0.33,
+					0.01,
+					0.33,
+					0.33
+				]
 			}
 		}
 	]

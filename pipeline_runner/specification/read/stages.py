@@ -50,7 +50,7 @@ class AbstractReadStage(AbstractPipelineStep):
 
         self._logger.info(self._successfully_loaded_data_repr)
 
-        return self.dataframe_id.lower(), df
+        return self._dataframe_id.lower(), df
 
 
 class ReadCsvStage(AbstractReadStage):

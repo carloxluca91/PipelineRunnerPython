@@ -25,21 +25,21 @@ class TestCreateStep(AbstractTestCase):
             create_step = CreateStep.from_dict(raw_create_step)
 
             self._logger.info(f"Successfully initialized create step # {index} "
-                              f"('{create_step.name}', "
-                              f"description = '{create_step.description}')")
+                              f"('{create_step._name}', "
+                              f"description = '{create_step._description}')")
 
             pd_dataframe: pd.DataFrame = create_step.create()
-            self.assertEqual(pd_dataframe.shape[0], create_step._number_of_records)
-            self.assertEqual(pd_dataframe.shape[1], len(create_step._dataframe_columns))
+            self.assertEqual(pd_dataframe.shape[0], create_step.number_of_records)
+            self.assertEqual(pd_dataframe.shape[1], create_step.number_of_columns)
 
             expected_colum_order: List[str] = \
-                list(map(lambda x: x.name,
+                list(map(lambda x: x._name,
                          sorted(create_step._typed_columns,
-                                key=lambda x: x.column_number)))
+                                key=lambda x: x._column_number)))
 
-            for expected_value, actual_value in zip(expected_colum_order, pd_dataframe.columns):
+            for expected_column, df_column in zip(expected_colum_order, pd_dataframe.columns):
 
-                self.assertEqual(expected_value, actual_value)
+                self.assertEqual(expected_column, df_column)
 
 
 if __name__ == '__main__':

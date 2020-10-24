@@ -32,9 +32,9 @@ class ReadCsvOptions(AbstractReadOptions):
     def _from_json_to_structtype(self, json_file_path: str):
 
         json_content = load_json(json_file_path)
-        structType_from_json: StructType = StructType(list(map(lambda x: StructField(name=x["name"],
+        structType_from_json: StructType = StructType(list(map(lambda x: StructField(name=x["_name"],
                                                                                      dataType=DATA_TYPE_DICT[x["type"]],
-                                                                                     nullable=True if x["nullable"].lower() == "true" else False),
+                                                                                     nullable=True if x["_nullable"].lower() == "true" else False),
                                                                json_content["schema"])))
 
         self._logger.info(f"Successfully retrieved StructType from file '{json_file_path}'")
