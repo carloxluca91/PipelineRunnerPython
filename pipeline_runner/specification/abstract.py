@@ -48,5 +48,5 @@ class AbstractPipelineStep(AbstractPipelineElement, ABC):
         return self._step_type
 
     @property
-    def dataframeid(self) -> str:
+    def dataframe_id(self) -> str:
         return self._dataframe_id

@@ -1,3 +1,4 @@
+import configparser
 
 if __name__ == '__main__':
 
@@ -17,7 +18,7 @@ if __name__ == '__main__':
     logger.info("Successfully loaded logging configuration")
     parser = argparse.ArgumentParser()
 
-    # OPTION -b, --branch
+    # OPTION -j, --json
     parser.add_argument("-j", "--json",
                                 type=str,
                                 dest="pipeline_file",
@@ -25,16 +26,40 @@ if __name__ == '__main__':
                                 help=".json file containing the pipeline to be executed",
                                 required=True)
 
-    pipeline_json_file_path = parser.parse_args().pipeline_file
+    # OPTION -i, --ini
+    parser.add_argument("-i", "--ini",
+                        type=str,
+                        dest="ini_file",
+                        metavar=".ini file path",
+                        help=".ini file path holding Spark application properties",
+                        required=True)
+
+    parser_with_args = parser.parse_args()
+    pipeline_json_file_path = parser_with_args.pipeline_file
+    ini_file_path = parser_with_args.ini_file
+
     if os.path.exists(pipeline_json_file_path):
 
-        logger.info(f"Pipeline specification file '{pipeline_json_file_path}' exists. Thus, trying to read it and trigger related instructions")
-        with open(pipeline_json_file_path, mode="r", encoding="UTF-8") as f:
+        logger.info(f"Pipeline .json file '{pipeline_json_file_path}' exists")
+        if os.path.exists(ini_file_path):
 
-            pipeline: Pipeline = json.load(f, object_hook=lambda d: Pipeline(**d))
+            logger.info(f"Spark application .ini file '{ini_file_path}' exists. Thus, evertyhing needed is in place")
+            job_properties: configparser.ConfigParser = configparser.ConfigParser(interpolation=configparser.ExtendedInterpolation())
+            with open(ini_file_path, mode="r", encoding="UTF-8") as f:
 
-        logger.info(f"Successfully parsed pipeline specification file '{pipeline_json_file_path}' as a {type(Pipeline).__name__}")
-        pipeline.run()
+                job_properties.read_file(f)
+                logger.info(f"Successfully loaded job properties dict. Job properties sections: {job_properties.sections()}")
+
+            with open(pipeline_json_file_path, mode="r", encoding="UTF-8") as f:
+
+                pipeline: Pipeline = json.load(f, object_hook=lambda d: Pipeline(job_properties, **d))
+
+            logger.info(f"Successfully parsed pipeline specification file '{pipeline_json_file_path}' as a {type(Pipeline).__name__}")
+            pipeline.run()
+
+        else:
+
+            logger.warning(f"Spark application .ini file does not exist. Thus, nothing will be triggered")
 
     else:
 

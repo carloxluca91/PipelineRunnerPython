@@ -1,7 +1,7 @@
 from abc import ABC
 from typing import List, Union
 
-from pipeline_runner.time.format import JAVA_PYTHON_DT_FORMAT_CONVERTER, \
+from pipeline_runner.utils.time import JAVA_PYTHON_DT_FORMAT_CONVERTER, \
     JAVA_PYTHON_TS_FORMAT_CONVERTER
 
 
@@ -17,9 +17,10 @@ class DateOrTimestampMetadata(ABC):
                  corrupt_format: str = None):
 
         from datetime import date, datetime
-        from pipeline_runner.time.format import to_datetime, to_date
-        from pipeline_runner.time.format import DEFAULT_TIMESTAMP_FORMAT, DEFAULT_DATE_FORMAT
+        from pipeline_runner.utils.time import to_datetime, to_date
+        from pipeline_runner.utils.time import DEFAULT_TIMESTAMP_FORMAT, DEFAULT_DATE_FORMAT
 
+        self.is_date = is_date
         self.lower_bound_dtt = to_date(lower_bound, DEFAULT_DATE_FORMAT) if is_date \
             else to_datetime(lower_bound, DEFAULT_TIMESTAMP_FORMAT)
 

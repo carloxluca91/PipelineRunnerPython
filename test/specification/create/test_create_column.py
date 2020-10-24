@@ -21,7 +21,7 @@ class TestCreateColumn(AbstractTestCase):
         from datetime import date, datetime
 
         from pipeline_runner.specification.create.column import DateOrTimestampColumn
-        from pipeline_runner.time.format import to_date, \
+        from pipeline_runner.utils.time import to_date, \
             to_datetime, \
             DEFAULT_TIMESTAMP_FORMAT, \
             DEFAULT_DATE_FORMAT
