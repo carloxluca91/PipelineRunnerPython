@@ -1,0 +1,69 @@
+{
+	"create_steps": [
+		{
+			"name": "CreateStep1",
+			"description": "Step for creating first dataframe from scratch",
+			"step_type": "create",
+			"dataframe_id": "df1",
+			"number_of_records": 10000,
+			"dataframe_columns": [
+				{
+					"name": "c1",
+					"description": "First Df column",
+					"column_type": "timestamp",
+					"column_number": 4,
+					"nullable_probability": 0.1,
+					"metadata": {
+						"lower_bound": "1950-01-01 00:00:00",
+						"upper_bound": null,
+						"output_format": "yyyy-MM-dd HH:mm:ss"
+					}
+				},
+				{
+					"name": "c2",
+					"description": "Second Df column",
+					"column_type": "timestamp",
+					"column_number": 3,
+					"nullable": false,
+					"nullable_probability": null,
+					"metadata": {
+						"lower_bound": "1950-01-01 00:00:00",
+						"upper_bound": null,
+						"output_format": "yyyy/MM/dd HH:mm:ss"
+					}
+				},
+				{
+					"name": "c3",
+					"description": "Third Df column",
+					"column_type": "timestamp",
+					"column_number": 2,
+					"nullable": false,
+					"nullable_probability": null,
+					"metadata": {
+						"lower_bound": "1950-01-01 00:00:00",
+						"upper_bound": "2019-12-31 23:59:59",
+						"output_format": "yyyy/MM/dd HH:mm:ss",
+						"tamper": true,
+						"tamper_probability": 0.1,
+						"tamper_format": "dd-MM-yyyy HH.mm.ss"
+					}
+				},
+				{
+					"name": "c4",
+					"description": "Fourth Df column",
+					"column_type": "timestamp",
+					"column_number": 1,
+					"nullable_probability": 0.05,
+					"metadata": {
+						"lower_bound": "1950-01-01 00:00:00",
+						"upper_bound": "2019-12-31 23:59:59",
+						"output_format": "yyyy/MM/dd HH:mm:ss",
+						"tamper": true,
+						"tamper_probability": 0.01,
+						"tamper_format": "dd-MM-yyyy HH.mm.ss"
+					}
+				}
+			]
+		}
+	]
+}
