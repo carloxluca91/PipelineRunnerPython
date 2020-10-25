@@ -4,8 +4,8 @@ from typing import List, Iterable, Union
 
 import numpy as np
 
-from pipeline_runner.specification.abstract import AbstractPipelineElement
-from pipeline_runner.specification.metadata import DateColumnMetadata, RandomColumnMetadata, TimestampColumnMetadata
+from pipeline_runner.pipeline.abstract import AbstractPipelineElement
+from pipeline_runner.pipeline.metadata import DateColumnMetadata, RandomColumnMetadata, TimestampColumnMetadata
 
 _DEFAULT_NULLABLE = True
 _DEFAULT_NULLABLE_PROBABILITY = 0.005

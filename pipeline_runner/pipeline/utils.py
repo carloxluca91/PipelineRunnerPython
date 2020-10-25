@@ -9,7 +9,7 @@ DATA_TYPE_DICT = {
     "string": StringType(),
     "int": IntegerType(),
     "double": DoubleType(),
-    "timestamp": DateType(),
+    "date": DateType(),
     "timestamp": TimestampType()
 }
 

@@ -5,8 +5,8 @@ from typing import Union, Callable, Tuple
 from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql.types import StructType
 
-from pipeline_runner.specification.abstract import AbstractPipelineStep
-from pipeline_runner.specification.read.options import ReadCsvOptions, ReadParquetOptions
+from pipeline_runner.pipeline.abstract import AbstractPipelineStep
+from pipeline_runner.pipeline.read.options import ReadCsvOptions, ReadParquetOptions
 
 
 class AbstractReadStage(AbstractPipelineStep):

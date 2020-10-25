@@ -2,10 +2,8 @@ import logging
 import pandas as pd
 from typing import List, Dict
 
-from pipeline_runner.specification.abstract import AbstractPipelineStep
-from pipeline_runner.specification.create.column import TypedColumn, \
-    DateOrTimestampColumn, \
-    RandomColumn
+from pipeline_runner.pipeline.abstract import AbstractPipelineStep
+from pipeline_runner.pipeline.create.column import TypedColumn, DateOrTimestampColumn, RandomColumn
 
 DATAFRAME_COLUMN_SWICTH = {
 
@@ -88,7 +86,6 @@ class CreateStep(AbstractPipelineStep):
             dict_of_dtypes[typed_column.name] = PD_DATAFRAME_DTYPE.get(typed_column.column_type, "str")
 
         self._logger.info(f"Successfully populated each of the {len(sorted_typed_columns)} dataframe column(s)")
-        # pd_dataframe = pd.DataFrame.from_dict(dict_of_series).astype(dtype=dict_of_dtypes)
-        pd_dataframe = pd.DataFrame.from_dict(dict_of_series)
+        pd_dataframe = pd.DataFrame.from_dict(dict_of_series).astype(dtype=dict_of_dtypes)
         self._logger.info("Successfully turned the populated columns into a pd.DataFrame")
         return pd_dataframe

@@ -5,7 +5,7 @@ from typing import List
 from pyspark.sql import functions
 from pyspark.sql import Column
 
-from pipeline_runner.specification.column.expression import COLUMN_EXPRESSION_DICT, ColumnExpressionRegex
+from pipeline_runner.pipeline.column.expression import COLUMN_EXPRESSION_DICT, ColumnExpressionRegex
 
 logger = logging.getLogger(__name__)
 

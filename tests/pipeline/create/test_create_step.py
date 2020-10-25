@@ -3,7 +3,7 @@ from typing import List
 
 import pandas as pd
 
-from pipeline_runner.specification.create.step import CreateStep
+from pipeline_runner.pipeline.create.step import CreateStep
 from tests.abstract import AbstractTestCase
 
 

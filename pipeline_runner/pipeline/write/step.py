@@ -4,8 +4,8 @@ from typing import Union, List
 
 from pyspark.sql import DataFrame, DataFrameWriter
 
-from pipeline_runner.specification.abstract import AbstractPipelineStep
-from pipeline_runner.specification.write.options import WriteCsvOptions, WriteParquetOptions
+from pipeline_runner.pipeline.abstract import AbstractPipelineStep
+from pipeline_runner.pipeline.write.options import WriteCsvOptions, WriteParquetOptions
 
 
 class AbstractWriteStage(AbstractPipelineStep):

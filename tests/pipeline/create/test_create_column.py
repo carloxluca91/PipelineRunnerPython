@@ -20,7 +20,7 @@ class TestCreateColumn(AbstractTestCase):
 
         from datetime import date, datetime
 
-        from pipeline_runner.specification.create.column import DateOrTimestampColumn
+        from pipeline_runner.pipeline.create.column import DateOrTimestampColumn
         from pipeline_runner.utils.time import to_date, \
             to_datetime, \
             DEFAULT_TIMESTAMP_FORMAT, \
@@ -117,7 +117,7 @@ class TestCreateColumn(AbstractTestCase):
 
     def test_random_column(self):
 
-        from pipeline_runner.specification.create.column import RandomColumn
+        from pipeline_runner.pipeline.create.column import RandomColumn
 
         for index, column in enumerate(self.column_list):
 

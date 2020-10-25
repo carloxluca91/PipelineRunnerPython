@@ -8,7 +8,7 @@ if __name__ == '__main__':
     import os
 
     from logging import config
-    from pipeline_runner.specification.pipeline import Pipeline
+    from pipeline_runner.pipeline.pipeline import Pipeline
 
     # LOGGING CONFIGURATION
     with open("pipeline_runner/logging.ini", "r", encoding="UTF-8") as f:

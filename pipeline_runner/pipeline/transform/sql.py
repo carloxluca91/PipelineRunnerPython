@@ -3,7 +3,7 @@ from abc import abstractmethod
 
 from pyspark.sql import DataFrame
 
-from pipeline_runner.specification.abstract import AbstractPipelineElement
+from pipeline_runner.pipeline.abstract import AbstractPipelineElement
 
 
 class AbstractTransformation(AbstractPipelineElement):

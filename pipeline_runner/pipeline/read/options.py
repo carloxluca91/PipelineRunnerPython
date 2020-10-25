@@ -3,7 +3,7 @@ from abc import ABC
 
 from pyspark.sql.types import StructType, StructField
 
-from pipeline_runner.specification.utils import DATA_TYPE_DICT, load_json
+from pipeline_runner.pipeline.utils import DATA_TYPE_DICT, load_json
 
 
 class AbstractReadOptions(ABC):
