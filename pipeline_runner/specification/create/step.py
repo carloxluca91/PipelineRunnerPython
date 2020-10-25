@@ -15,6 +15,12 @@ DATAFRAME_COLUMN_SWICTH = {
     "int": RandomColumn
 }
 
+PD_DATAFRAME_DTYPE = {
+
+    "int": "int",
+    "float": "float",
+}
+
 
 class CreateStep(AbstractPipelineStep):
 
@@ -66,20 +72,23 @@ class CreateStep(AbstractPipelineStep):
     def create(self) -> pd.DataFrame:
 
         dict_of_series: Dict[str, pd.Series] = {}
+        dict_of_dtypes: Dict[str, str] = {}
         sorted_typed_columns: List[TypedColumn] = sorted(self._typed_columns, key=lambda x: x.column_number)
 
         self._logger.info(f"Starting to populate each of the {len(sorted_typed_columns)} dataframe column(s)")
-        for index, dataframe_column in enumerate(sorted_typed_columns):
+        for index, typed_column in enumerate(sorted_typed_columns, start=1):
 
-            series = pd.Series(data=dataframe_column.create(self._number_of_records), name=dataframe_column._name)
+            series = pd.Series(data=typed_column.create(self._number_of_records), name=typed_column._name)
 
             self._logger.info(f"Successfully populated column # {index} ("
-                              f"name = '{dataframe_column.name}', "
-                              f"description = '{dataframe_column.description}'")
+                              f"name = '{typed_column.name}', "
+                              f"description = '{typed_column.description}'")
 
-            dict_of_series[dataframe_column._name] = series
+            dict_of_series[typed_column.name] = series
+            dict_of_dtypes[typed_column.name] = PD_DATAFRAME_DTYPE.get(typed_column.column_type, "str")
 
         self._logger.info(f"Successfully populated each of the {len(sorted_typed_columns)} dataframe column(s)")
+        # pd_dataframe = pd.DataFrame.from_dict(dict_of_series).astype(dtype=dict_of_dtypes)
         pd_dataframe = pd.DataFrame.from_dict(dict_of_series)
         self._logger.info("Successfully turned the populated columns into a pd.DataFrame")
         return pd_dataframe

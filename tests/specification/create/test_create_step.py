@@ -4,7 +4,7 @@ from typing import List
 import pandas as pd
 
 from pipeline_runner.specification.create.step import CreateStep
-from test.abstract import AbstractTestCase
+from tests.abstract import AbstractTestCase
 
 
 class TestCreateStep(AbstractTestCase):

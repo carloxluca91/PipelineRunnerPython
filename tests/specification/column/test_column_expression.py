@@ -2,7 +2,7 @@ import re
 import unittest
 from typing import List
 
-from test.abstract import AbstractTestCase
+from tests.abstract import AbstractTestCase
 
 
 class TestColumnExpression(AbstractTestCase):

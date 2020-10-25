@@ -4,7 +4,7 @@ import unittest
 from logging import config
 
 from pipeline_runner.specification.utils import load_json
-from test.paths import PROJECT_JSON_TEST_DIRECTORY, LOGGING_INI_FILE
+from tests.paths import PROJECT_JSON_TEST_DIRECTORY, LOGGING_INI_FILE
 
 
 class AbstractTestCase(unittest.TestCase):

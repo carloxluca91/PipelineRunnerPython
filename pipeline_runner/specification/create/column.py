@@ -5,9 +5,7 @@ from typing import List, Iterable, Union
 import numpy as np
 
 from pipeline_runner.specification.abstract import AbstractPipelineElement
-from pipeline_runner.specification.metadata import DateColumnMetadata, \
-    TimestampColumnMetadata, \
-    RandomColumnMetadata
+from pipeline_runner.specification.metadata import DateColumnMetadata, RandomColumnMetadata, TimestampColumnMetadata
 
 _DEFAULT_NULLABLE = True
 _DEFAULT_NULLABLE_PROBABILITY = 0.005
@@ -114,8 +112,7 @@ class DateOrTimestampColumn(TypedColumn):
                                   else random_ts_or_date
                                   for random_ts_or_date, p in zip(random_ts_or_dates, corruption_probabilities)]
 
-        return self._corrupt_with_none(random_ts_or_dates) if self.nullable \
-            else random_ts_or_dates
+        return self._corrupt_with_none(random_ts_or_dates) if self.nullable else random_ts_or_dates
 
 
 class RandomColumn(TypedColumn):
@@ -144,6 +141,18 @@ class RandomColumn(TypedColumn):
 
     def create(self, number_of_records: int):
 
-        return self._corrupt_with_none([self._rng.choice(self._metadata.values,
-                                                         size=number_of_records,
-                                                         p=self._metadata.p)])
+        metadata = self._metadata
+        values_length: int = len(metadata.values)
+        p_length: int = len(metadata.p)
+        p_sum: float = sum(metadata.p)
+
+        if (values_length == p_length) and p_sum == 1:
+
+            original_data = self._rng.choice(metadata.values, size=number_of_records, p=metadata.p)
+            return self._corrupt_with_none(original_data) if self.nullable else original_data
+
+        else:
+
+            raise ValueError(f"The number of provided values ({values_length}) does not match "
+                             f"the number of provided probabilities ({p_length}), "
+                             f"or the probailities do not sum up to 1 ({p_sum})")

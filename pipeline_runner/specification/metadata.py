@@ -1,8 +1,7 @@
 from abc import ABC
 from typing import List, Union
 
-from pipeline_runner.utils.time import JAVA_PYTHON_DT_FORMAT_CONVERTER, \
-    JAVA_PYTHON_TS_FORMAT_CONVERTER
+from pipeline_runner.utils.time import JAVA_PYTHON_DT_FORMAT_CONVERTER, JAVA_PYTHON_TS_FORMAT_CONVERTER
 
 
 class DateOrTimestampMetadata(ABC):
@@ -103,10 +102,10 @@ class RandomColumnMetadata:
 
     def __init__(self,
                  values: List[Union[str, float, int]],
-                 p: List[float]):
+                 p: List[float] = None):
 
         self.values = values
-        self.p = p if p is not None else [1/len(values)] * len(values)
+        self.p = [1/len(values)] * len(values) if p is None else p
 
     @classmethod
     def from_dict(cls, input_dict: dict):

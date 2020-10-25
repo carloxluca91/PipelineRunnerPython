@@ -11,7 +11,7 @@ if __name__ == '__main__':
     from pipeline_runner.specification.pipeline import Pipeline
 
     # LOGGING CONFIGURATION
-    with open("logging.ini", "r", encoding="UTF-8") as f:
+    with open("pipeline_runner/logging.ini", "r", encoding="UTF-8") as f:
         config.fileConfig(f)
 
     logger = logging.getLogger(__name__)
@@ -52,9 +52,10 @@ if __name__ == '__main__':
 
             with open(pipeline_json_file_path, mode="r", encoding="UTF-8") as f:
 
-                pipeline: Pipeline = json.load(f, object_hook=lambda d: Pipeline(job_properties, **d))
+                json_dict: dict = json.load(f)
 
-            logger.info(f"Successfully parsed pipeline specification file '{pipeline_json_file_path}' as a {type(Pipeline).__name__}")
+            pipeline = Pipeline(job_properties, **json_dict)
+            logger.info(f"Successfully parsed pipeline specification file '{pipeline_json_file_path}' as a {Pipeline.__name__}")
             pipeline.run()
 
         else:

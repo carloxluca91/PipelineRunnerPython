@@ -19,7 +19,7 @@ SOURCE_TYPE_DICT = {
 }
 
 
-def schema_tree_string(df: DataFrame) -> str:
+def _schema_tree_string(df: DataFrame) -> str:
 
     schema_json: dict = df.schema.jsonValue()
     schema_str_list: List[str] = list(map(lambda x: f" |-- {x['name']}: {x['type']} (nullable: {str(x['nullable']).lower()})",
@@ -95,9 +95,7 @@ class Pipeline(AbstractPipelineElement):
 
         self._logger.info(f"Kicking off pipeline '{self.name}' ('{self.description}')")
 
-        if self._run_create_steps():
-
-            a = 1
+        self._run_create_steps()
 
         '''
         # PARSE LOADING_STAGES (IF PRESENT)
@@ -153,7 +151,7 @@ class Pipeline(AbstractPipelineElement):
                                       f"('{create_step.name}', "
                                       f"description = '{create_step.description}'). Related dataFrameId = '{create_step.dataframe_id}'")
 
-                    self._logger.info(f"Created pyspark.sql.Dataframe has schema:\n\n " + schema_tree_string(spark_dataframe))
+                    self._logger.info(f"Created pyspark.sql.Dataframe has schema:\n\n " + _schema_tree_string(spark_dataframe))
                     self._dataframe_dict[create_step.dataframe_id] = spark_dataframe
 
                 except Exception as exception:
@@ -189,7 +187,7 @@ class Pipeline(AbstractPipelineElement):
 
         application_id: str = spark_context.applicationId
         application_name: str = spark_context.appName
-        application_start_time: datetime = datetime.fromtimestamp(spark_context.startTime / 1000)
+        application_start_time: datetime = datetime.fromtimestamp(int(spark_context.startTime / 1000))
         application_start_date: date = application_start_time.date()
 
         return JDBCLogRecord(application_id,
@@ -212,13 +210,16 @@ class Pipeline(AbstractPipelineElement):
     def _write_jdbc_logging_records(self):
 
         logging_records_df: DataFrame = self._spark_session.createDataFrame(self._logging_records, JDBCLogRecord.as_structype())
-        self._logger.info(f"Successfully turned list of {len(self._logging_records)} {JDBCLogRecord.__name__} as {DataFrame.__name__}")
+        self._logger.info(f"Successfully turned list of {len(self._logging_records)} {JDBCLogRecord.__name__} into a {DataFrame.__name__}")
+        self._logger.info(f"DataFrame to be written has schema:\n{_schema_tree_string(logging_records_df)}")
+        logging_records_df.show(truncate=False)
+        logging_records_df.printSchema()
 
-        jdbc_url = self._job_properties["jdbc"]["url"]
-        jdbc_user = self._job_properties["jdbc"]["user"]
-        jdbc_password = self._job_properties["jdbc"]["password"]
-        jdbc_driver = self._job_properties["jdbc"]["driver"]
-        jdbc_use_ssl = self._job_properties["jdbc"]["useSSL"].lower()
+        jdbc_url = self._job_properties["jdbc"]["jdbc.default.url"]
+        jdbc_user = self._job_properties["jdbc"]["jdbc.default.userName"]
+        jdbc_password = self._job_properties["jdbc"]["jdbc.default.passWord"]
+        jdbc_driver = self._job_properties["jdbc"]["jdbc.default.driver.className"]
+        jdbc_use_ssl = self._job_properties["jdbc"]["jdbc.default.useSSL"].lower()
 
         spark_jdbc_options: dict = {
 
@@ -233,7 +234,6 @@ class Pipeline(AbstractPipelineElement):
         log_table_savemode: str = self._job_properties["spark"]["application_log_table_savemode"]
 
         self._logger.info(f"Starting to insert data into table '{log_table_name_full}' using savemode '{log_table_savemode}'")
-        self._logger.info(f"DataFrame to be written has schema:\n{schema_tree_string(logging_records_df)}")
 
         logging_records_df \
             .write \

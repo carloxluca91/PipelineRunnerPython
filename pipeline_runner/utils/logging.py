@@ -1,6 +1,7 @@
 import datetime
 
-from pyspark.sql.types import StructType, StructField, StringType, TimestampType, DateType, IntegerType
+from pyspark.sql.types import StructType, StructField
+from pyspark.sql.types import StringType, TimestampType, DateType, IntegerType
 
 
 class JDBCLogRecord:

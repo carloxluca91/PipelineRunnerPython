@@ -1,1 +1,5 @@
 .idea/*
+build
+dist
+pipelineRunner.egg-info
+derby.log
