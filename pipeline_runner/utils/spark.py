@@ -1,6 +1,16 @@
 from typing import List
 
 from pyspark.sql import DataFrame
+from pyspark.sql.types import StringType, IntegerType, DoubleType, DateType, TimestampType
+
+DATA_TYPE_DICT = {
+
+    "string": StringType(),
+    "int": IntegerType(),
+    "double": DoubleType(),
+    "date": DateType(),
+    "timestamp": TimestampType()
+}
 
 
 def df_print_schema(df: DataFrame) -> str:

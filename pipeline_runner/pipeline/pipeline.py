@@ -13,6 +13,7 @@ from pipeline_runner.pipeline.create.step import CreateStep
 from pipeline_runner.pipeline.read.step import AbstractReadStage, ReadCsvStage, ReadParquetStage
 from pipeline_runner.utils.logging import JDBCLogRecord
 from pipeline_runner.utils.spark import df_print_schema
+from pipeline_runner.utils.jdbc import get_spark_writer_jdbc_options
 
 SOURCE_TYPE_DICT = {
 
@@ -50,7 +51,7 @@ class Pipeline(AbstractPipelineElement):
                            f"UI url: {self._spark_session.sparkContext.uiWebUrl}")
 
         self._dataframe_dict: Dict[str, DataFrame] = {}
-        self._logging_records: List[JDBCLogRecord] = []
+        self._jdbc_log_records: List[JDBCLogRecord] = []
 
     @property
     def pipeline_id(self):
@@ -127,10 +128,10 @@ class Pipeline(AbstractPipelineElement):
                               f"'{self.name}' "
                               f"('{self.description}')")
 
-            for index, raw_create_step in enumerate(create_steps):
+            for index, raw_create_step in enumerate(create_steps, start=1):
 
                 create_step = CreateStep.from_dict(raw_create_step)
-                self._logger.info(f"Successfully initialized create step # {index + 1} "
+                self._logger.info(f"Successfully initialized create step # {index} "
                                   f"('{create_step.name}', "
                                   f"description = '{create_step.description}')")
                 try:
@@ -138,7 +139,7 @@ class Pipeline(AbstractPipelineElement):
                     pd_dataframe: pd.DataFrame = create_step.create()
                     spark_dataframe: DataFrame = self._spark_session.createDataFrame(pd_dataframe)
 
-                    self._logger.info(f"Successfully created pyspark.sql.DataFrame related to create step # {index + 1} "
+                    self._logger.info(f"Successfully created pyspark.sql.DataFrame related to create step # {index} "
                                       f"('{create_step.name}', "
                                       f"description = '{create_step.description}'). Related dataFrameId = '{create_step.dataframe_id}'")
 
@@ -147,18 +148,18 @@ class Pipeline(AbstractPipelineElement):
 
                 except Exception as exception:
 
-                    self._logger.exception(f"Caught exception while running create step # {index + 1} "
+                    self._logger.exception(f"Caught exception while running create step # {index} "
                                        f"('{create_step.name}', "
                                        f"description = '{create_step.description}'", exception)
 
-                    self._logging_records.append(self._build_jdbc_log_record(create_step, exception))
-                    # self._write_jdbc_logging_records()
+                    self._jdbc_log_records.append(self._build_jdbc_log_record(create_step, exception))
+                    self._write_jdbc_log_records()
                     everything_ok = False
                     break
 
                 else:
 
-                    self._logging_records.append(self._build_jdbc_log_record(create_step))
+                    self._jdbc_log_records.append(self._build_jdbc_log_record(create_step))
 
             if everything_ok:
 
@@ -198,27 +199,12 @@ class Pipeline(AbstractPipelineElement):
                              "OK" if exception is None else "KO",
                              None if exception is None else repr(exception))
 
-    def _write_jdbc_logging_records(self):
+    def _write_jdbc_log_records(self):
 
-        logging_dataframe: DataFrame = self._spark_session.createDataFrame(self._logging_records, JDBCLogRecord.as_structype())
+        logging_dataframe: DataFrame = self._spark_session.createDataFrame(self._jdbc_log_records, JDBCLogRecord.as_structype())
 
-        self._logger.info(f"Successfully turned list of {len(self._logging_records)} {JDBCLogRecord.__name__}(s) into a {DataFrame.__name__}")
+        self._logger.info(f"Successfully turned list of {len(self._jdbc_log_records)} {JDBCLogRecord.__name__}(s) into a {DataFrame.__name__}")
         self._logger.info(f"DataFrame to be written has schema:\n{df_print_schema(logging_dataframe)}")
-
-        jdbc_url = self._job_properties["jdbc"]["jdbc.default.url"]
-        jdbc_driver = self._job_properties["jdbc"]["jdbc.default.driver.className"]
-        jdbc_user = self._job_properties["jdbc"]["jdbc.default.userName"]
-        jdbc_password = self._job_properties["jdbc"]["jdbc.default.passWord"]
-        jdbc_use_ssl = self._job_properties["jdbc"]["jdbc.default.useSSL"].lower()
-
-        spark_writer_jdbc_options: dict = {
-
-            "url": jdbc_url,
-            "driver": jdbc_driver,
-            "user": jdbc_user,
-            "password": jdbc_password,
-            "useSSL": jdbc_use_ssl
-        }
 
         log_table_name_full: str = self._job_properties["jdbc"]["jdbc.default.logTable.full"]
         log_table_savemode: str = self._job_properties["jdbc"]["jdbc.default.logTable.saveMode"]
@@ -228,7 +214,7 @@ class Pipeline(AbstractPipelineElement):
         logging_dataframe \
             .write \
             .format("jdbc") \
-            .options(**spark_writer_jdbc_options) \
+            .options(**get_spark_writer_jdbc_options(self._job_properties)) \
             .option("dbtable", log_table_name_full) \
             .mode(log_table_savemode) \
             .save()

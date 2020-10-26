@@ -14,8 +14,8 @@ class TestColumnExpression(AbstractTestCase):
 
     def test_substring_transformation(self):
 
-        from pipeline_runner.pipeline.column.expression import SubstringTransformation
-        from pipeline_runner.pipeline.column.expression import ColumnExpressionRegex
+        from pipeline.transform.expression import SubstringTransformation
+        from pipeline.transform.expression import ColumnExpressionRegex
 
         substring_start_index = 0
         substring_length = 5

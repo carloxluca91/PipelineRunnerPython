@@ -1,150 +1,60 @@
+import configparser
 import logging
-from abc import abstractmethod
-from typing import Union, List
+from typing import Dict
 
-from pyspark.sql import DataFrame, DataFrameWriter
+from pyspark.sql import DataFrame, SparkSession
 
 from pipeline_runner.pipeline.abstract import AbstractPipelineStep
-from pipeline_runner.pipeline.write.options import WriteCsvOptions, WriteParquetOptions
+from pipeline_runner.pipeline.write.option import CsvDstOptions, HiveTableDstOptions, JDBCTableDstOptions
+from pipeline_runner.pipeline.write.writer import HiveTableWriter
+
+DST_OPTIONS_TYPE_SWITCH = {
+
+    "csv": CsvDstOptions,
+    "hive": HiveTableDstOptions,
+    "jdbc": JDBCTableDstOptions
+}
 
 
-class AbstractWriteStage(AbstractPipelineStep):
+def _get(job_properties: configparser.ConfigParser, section: str, key: str):
+
+    return job_properties[section][key]
+
+
+def _get_or_else(job_properties: configparser.ConfigParser, section: str, key: str, default_value):
+
+    return default_value if key is None else _get(job_properties, section, key)
+
+
+class WriteStep(AbstractPipelineStep):
 
     def __init__(self,
+                 spark_session: SparkSession,
                  name: str,
                  description: str,
                  step_type: str,
                  dataframe_id: str,
-                 destination_type: str,
-                 destination_options: Union[WriteCsvOptions, WriteParquetOptions]):
+                 dst_options: dict):
 
         super().__init__(name, description, step_type, dataframe_id)
+
         self._logger = logging.getLogger(__name__)
-        self.destination_type = destination_type
-        self.destination_options = destination_options
+        self._spark_session = spark_session
+        self._dst_type = dst_options["destination_type"]
+        self._dst_options = DST_OPTIONS_TYPE_SWITCH[self._dst_type].from_dict(dst_options)
 
-    def _get_base_df_writer(self, df: DataFrame) -> DataFrameWriter:
-
-        savemode: str = self.destination_options.savemode
-        coalesce: int = self.destination_options.coalesce
-        partition_by: Union[List[str], str] = self.destination_options.partition_by
-
-        df_maybe_coalesced = df if coalesce is None else df.coalesce(coalesce)
-        partition_by_columns: List[str] = None if partition_by is None \
-            else (list(partition_by) if isinstance(partition_by, str)
-                  else partition_by)
-
-        df_writer_maybe_partitioned: DataFrameWriter = df_maybe_coalesced.write if partition_by_columns is None \
-            else df_maybe_coalesced\
-            .write\
-            .partitionBy(*partition_by_columns)
-
-        self._logger.info(f"Setting up {type(DataFrameWriter).__name__} with following settings: "
-                          f"format = '{self.destination_type}', "
-                          f"savemode = '{savemode}', "
-                          f"coalesce = '{coalesce}', "
-                          f"partitionBy = '{partition_by_columns}'")
-
-        return df_writer_maybe_partitioned\
-            .format(self.destination_type)\
-            .mode(savemode)
+    @classmethod
+    def from_session_plus_dict(cls, spark_session: SparkSession, input_dict: dict):
+        return cls(spark_session, **input_dict)
 
     @property
-    @abstractmethod
-    def _start_to_save_repr(self) -> str:
-        pass
+    def dst_type(self) -> str:
+        return self._dst_type
 
-    @property
-    @abstractmethod
-    def _successfully_saved_repr(self) -> str:
-        pass
+    def write(self, df_dict: Dict[str, DataFrame], job_properties: configparser.ConfigParser) -> None:
 
-    @abstractmethod
-    def _extend_df_writer(self, df_writer: DataFrameWriter) -> DataFrameWriter:
-        pass
+        df: DataFrame = df_dict[self.dataframe_id]
+        if isinstance(self._dst_options, HiveTableDstOptions):
 
-    def write(self, df: DataFrame) -> None:
+            HiveTableWriter(job_properties, self._dst_options, self._spark_session).write(df)
 
-        self._logger.info(self._start_to_save_repr)
-
-        base_df_writer: DataFrameWriter = self._get_base_df_writer(df)
-        final_df_writer: DataFrameWriter = self._extend_df_writer(base_df_writer)
-        final_df_writer.save(self.destination_options.path)
-
-        self._logger.info(self._successfully_saved_repr)
-
-
-class WriteCsvStage(AbstractWriteStage):
-
-    def __init__(self,
-                 name: str,
-                 description: str,
-                 step_type: str,
-                 dataframe_id: str,
-                 destination_type: str,
-                 destination_options: dict):
-
-        super().__init__(name, description, step_type, dataframe_id, destination_type, WriteCsvOptions(**destination_options))
-
-    def _extend_df_writer(self, df_writer: DataFrameWriter) -> DataFrameWriter:
-
-        delimiter: str = self.destination_options.delimiter
-        header: bool = self.destination_options.header
-
-        return df_writer\
-            .option("sep", delimiter)\
-            .option("header", header)
-
-    @property
-    def _start_to_save_repr(self) -> str:
-
-        path: str = self.destination_options.path
-        savemode: str = self.destination_options.savemode
-        header: bool = self.destination_options.header
-        delimiter: str = self.destination_options.delimiter
-
-        return f"Starting to save data as .csv at path '{path}' with savemode '{savemode}' " \
-               f"(header = '{header}', " \
-               f"sep = '{delimiter}')"
-
-    @property
-    def _successfully_saved_repr(self) -> str:
-
-        path: str = self.destination_options.path
-        savemode: str = self.destination_options.savemode
-        header: bool = self.destination_options.header
-        delimiter: str = self.destination_options.delimiter
-
-        return f"Successfully saved data as .csv at path '{path}' with savemode '{savemode}' " \
-               f"(header = '{header}', " \
-               f"sep = '{delimiter}')"
-
-
-class WriteParquetStage(AbstractWriteStage):
-
-    def __init__(self,
-                 name: str,
-                 description: str,
-                 step_type: str,
-                 dataframe_id: str,
-                 destination_type: str,
-                 destination_options: dict):
-
-        super().__init__(name, description, step_type, dataframe_id, destination_type, WriteParquetOptions(**destination_options))
-
-    @property
-    def _start_to_save_repr(self) -> str:
-
-        path: str = self.destination_options.path
-        savemode: str = self.destination_options.savemode
-        return f"Starting to save data as .parquet at path '{path}' with savemode '{savemode}'"
-
-    @property
-    def _successfully_saved_repr(self) -> str:
-
-        path: str = self.destination_options.path
-        savemode: str = self.destination_options.savemode
-        return f"Successfully saved data as .parquet at path '{path}' with savemode '{savemode}'"
-
-    def _extend_df_writer(self, df_writer: DataFrameWriter) -> DataFrameWriter:
-        return df_writer

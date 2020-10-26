@@ -5,7 +5,7 @@ from typing import List, Iterable, Union
 import numpy as np
 
 from pipeline_runner.pipeline.abstract import AbstractPipelineElement
-from pipeline_runner.pipeline.metadata import DateColumnMetadata, RandomColumnMetadata, TimestampColumnMetadata
+from pipeline.create.metadata import DateColumnMetadata, RandomColumnMetadata, TimestampColumnMetadata
 
 _DEFAULT_NULLABLE = True
 _DEFAULT_NULLABLE_PROBABILITY = 0.005
@@ -106,7 +106,7 @@ class DateOrTimestampColumn(TypedColumn):
         # CORRUPT DATA, IF NECESSARY
         if data_corruption_flag and data_corruption_prob and python_corrupting_format:
 
-            self._logger.info(f"Tampering operation details (probability = {data_corruption_prob}, format = '{java_corrupting_format}')")
+            self._logger.info(f"Corrupting operation details (probability = {data_corruption_prob}, format = '{java_corrupting_format}')")
             corruption_probabilities = self._rng.choice([0, 1], number_of_records, p=[1 - data_corruption_prob, data_corruption_prob])
             random_ts_or_dates = [datetime.strptime(random_ts_or_date, python_output_format).strftime(python_corrupting_format) if p == 1
                                   else random_ts_or_date

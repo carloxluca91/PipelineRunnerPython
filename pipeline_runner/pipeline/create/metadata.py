@@ -63,11 +63,6 @@ class DateColumnMetadata(DateOrTimestampMetadata):
     def from_dict(cls, input_dict: dict):
         return cls(**input_dict)
 
-    @classmethod
-    def from_json(cls, json_file_path: str):
-        from pipeline_runner.pipeline.utils import load_json
-        return cls(**load_json(json_file_path))
-
 
 class TimestampColumnMetadata(DateOrTimestampMetadata):
 
@@ -92,11 +87,6 @@ class TimestampColumnMetadata(DateOrTimestampMetadata):
     def from_dict(cls, input_dict: dict):
         return cls(**input_dict)
 
-    @classmethod
-    def from_json(cls, json_file_path: str):
-        from pipeline_runner.pipeline.utils import load_json
-        return cls(**load_json(json_file_path))
-
 
 class RandomColumnMetadata:
 
@@ -110,8 +100,3 @@ class RandomColumnMetadata:
     @classmethod
     def from_dict(cls, input_dict: dict):
         return cls(**input_dict)
-
-    @classmethod
-    def from_json(cls, json_file_path: str):
-        from pipeline_runner.pipeline.utils import load_json
-        return cls(**load_json(json_file_path))

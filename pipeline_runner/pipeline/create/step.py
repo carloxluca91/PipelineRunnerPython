@@ -51,14 +51,14 @@ class CreateStep(AbstractPipelineStep):
                           f"of create step '{self._name}', "
                           f"({self._description})")
 
-        for index, dataframe_column in enumerate(dataframe_columns):
+        for index, dataframe_column in enumerate(dataframe_columns, start=1):
 
             column_type_lc: str = dataframe_column["column_type"]
             column_name: str = dataframe_column["name"]
             column_description: str = dataframe_column["description"]
 
             typed_column: TypedColumn = DATAFRAME_COLUMN_SWICTH[column_type_lc].from_dict(dataframe_column)
-            self._logger.info(f"Successfully parsed metadata for column # {index + 1} (columnName = '{column_name}', description = '{column_description}')")
+            self._logger.info(f"Successfully parsed metadata for column # {index} (columnName = '{column_name}', description = '{column_description}')")
             list_of_typed_columns.append(typed_column)
 
         self._logger.info(f"Successfully processed metadata for each of the {len(dataframe_columns)} column(s) "

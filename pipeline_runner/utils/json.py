@@ -2,17 +2,6 @@ import errno
 import json
 import os
 
-from pyspark.sql.types import StringType, IntegerType, DoubleType, DateType, TimestampType
-
-DATA_TYPE_DICT = {
-
-    "string": StringType(),
-    "int": IntegerType(),
-    "double": DoubleType(),
-    "date": DateType(),
-    "timestamp": TimestampType()
-}
-
 
 def load_json(json_file_path: str) -> dict:
 
