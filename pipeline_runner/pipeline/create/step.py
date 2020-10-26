@@ -2,7 +2,7 @@ import logging
 import pandas as pd
 from typing import List, Dict
 
-from pipeline_runner.pipeline.abstract import AbstractPipelineStep
+from pipeline_runner.pipeline.abstract import AbstractStep
 from pipeline_runner.pipeline.create.column import TypedColumn, DateOrTimestampColumn, RandomColumn
 
 DATAFRAME_COLUMN_SWICTH = {
@@ -20,7 +20,7 @@ PD_DATAFRAME_DTYPE = {
 }
 
 
-class CreateStep(AbstractPipelineStep):
+class CreateStep(AbstractStep):
 
     def __init__(self,
                  name: str,
@@ -48,12 +48,12 @@ class CreateStep(AbstractPipelineStep):
 
         list_of_typed_columns: List[TypedColumn] = []
         self._logger.info(f"Starting to process metadata for each of the {len(dataframe_columns)} column(s) "
-                          f"of create step '{self._name}', "
-                          f"({self._description})")
+                          f"of create step '{self._name}' "
+                          f"('{self._description}')")
 
         for index, dataframe_column in enumerate(dataframe_columns, start=1):
 
-            column_type_lc: str = dataframe_column["column_type"]
+            column_type_lc: str = dataframe_column["columnType"]
             column_name: str = dataframe_column["name"]
             column_description: str = dataframe_column["description"]
 
@@ -62,8 +62,8 @@ class CreateStep(AbstractPipelineStep):
             list_of_typed_columns.append(typed_column)
 
         self._logger.info(f"Successfully processed metadata for each of the {len(dataframe_columns)} column(s) "
-                          f"of create step '{self._name}', "
-                          f"({self._description})")
+                          f"of create step '{self._name}' "
+                          f"('{self._description}')")
 
         return list_of_typed_columns
 

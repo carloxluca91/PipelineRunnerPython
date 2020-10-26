@@ -1,7 +1,4 @@
 import logging
-
-import mysql
-from mysql import connector
 from configparser import ConfigParser
 from typing import List, Dict
 
@@ -10,7 +7,7 @@ from pyspark.sql import DataFrame
 logger = logging.getLogger(__name__)
 
 
-def get_table_schema_from_df(df: DataFrame, db_name: str, table_name: str) -> str:
+def get_create_table_from_df(df: DataFrame, db_name: str, table_name: str) -> str:
 
     COLUMN_TYPE_DICT = {
 
@@ -26,7 +23,7 @@ def get_table_schema_from_df(df: DataFrame, db_name: str, table_name: str) -> st
     return create_table_statement + ",\n".join(columns_definitions) + " )"
 
 
-def get_jdbc_cursor(job_properties: ConfigParser) -> mysql.connector.connection.MySQLCursor:
+def get_connector_options(job_properties: ConfigParser) -> Dict:
 
     jdbc_host = job_properties["jdbc"]["jdbc.default.host"]
     jdbc_port = job_properties["jdbc"]["jdbc.default.port"]
@@ -39,7 +36,7 @@ def get_jdbc_cursor(job_properties: ConfigParser) -> mysql.connector.connection.
                 f"passWord = '{jdbc_password}', "
                 f"useSSL = {jdbc_use_ssl}")
 
-    connector_options: dict = {
+    return {
 
         "host": jdbc_host,
         "port": jdbc_port,
@@ -48,15 +45,6 @@ def get_jdbc_cursor(job_properties: ConfigParser) -> mysql.connector.connection.
         "ssl_disabled": jdbc_use_ssl,
         "raise_on_warnings": True,
     }
-
-    # MySQL Python CONNECTOR
-    mysql_connection: mysql.connector.MySQLConnection = mysql.connector.connect(**connector_options)
-    logger.info(f"Successfully estabilished connection to '{connector_options['host']}:{str(connector_options['port'])}' "
-                       f"with credentials ('{connector_options['user']}', '{connector_options['password']}'")
-
-    # MySQL Python CURSOR (FOR QUERY EXECUTION)
-    mysql_cursor: mysql.connector.connection.MySQLCursor = mysql_connection.cursor()
-    return mysql_cursor
 
 
 def get_spark_writer_jdbc_options(job_properties: ConfigParser,

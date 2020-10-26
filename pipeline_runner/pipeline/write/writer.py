@@ -3,10 +3,12 @@ from abc import ABC, abstractmethod
 from configparser import ConfigParser
 from typing import List, Union
 
+import mysql
+from mysql import connector
 from pyspark.sql import DataFrame, SparkSession
 
 from pipeline_runner.pipeline.write.option import HiveTableDstOptions, JDBCTableDstOptions
-from pipeline_runner.utils.jdbc import get_jdbc_cursor, get_spark_writer_jdbc_options
+from pipeline_runner.utils.jdbc import get_spark_writer_jdbc_options, get_connector_options
 from pipeline_runner.utils.spark import df_print_schema
 
 
@@ -138,6 +140,10 @@ class JDBCTableWriter(TableWriter):
 
         super().__init__(job_properties, dst_options, dst_type)
 
+        self._mysql_connection = mysql.connector.connect(**get_connector_options(job_properties))
+        self._logger.info(f"Successfully estabilished JDBC connection with default coordinates")
+        self._mysql_cursor = self._mysql_connection.cursor()
+
     def _get_spark_writer_options(self) -> dict:
 
         job_properties = self._job_properties
@@ -146,15 +152,15 @@ class JDBCTableWriter(TableWriter):
         return get_spark_writer_jdbc_options(job_properties,
                                              url_key=dst_options.url,
                                              driver_key=dst_options.driver,
-                                             user_key=dst_options.username,
-                                             password_key=dst_options.password,
+                                             user_key=dst_options.user,
+                                             password_key=dst_options.pass_word,
                                              use_ssl_key=dst_options.use_ssl)
 
     def _create_database_if_not_exists(self, db_name: str) -> None:
 
         logger = self._logger
+        mysql_cursor = self._mysql_cursor
 
-        mysql_cursor = get_jdbc_cursor(self._job_properties)
         logger.info(f"Checking existence of JDBC database '{db_name}'")
         mysql_cursor.execute("SHOW DATABASES")
 

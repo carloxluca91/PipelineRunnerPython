@@ -1,12 +1,26 @@
-from abc import ABC
+from abc import ABC, abstractmethod
+
+from pipeline_runner.utils.json import from_java_to_python_convention
 
 
-class AbstractPipelineElement(ABC):
+class AbstractJsonElement(ABC):
+
+    @abstractmethod
+    def __init__(self, **kwars):
+        pass
+
+    @classmethod
+    def from_dict(cls, dict_: dict):
+        return cls(**from_java_to_python_convention(dict_))
+
+
+class AbstractPipelineElement(AbstractJsonElement, ABC):
 
     def __init__(self,
                  name: str,
                  description: str):
 
+        super().__init__()
         self._name = name
         self._description = description
 
@@ -18,13 +32,8 @@ class AbstractPipelineElement(ABC):
     def description(self) -> str:
         return self._description
 
-    @classmethod
-    def from_dict(cls, input_dict: dict):
 
-        return cls(**input_dict)
-
-
-class AbstractPipelineStep(AbstractPipelineElement, ABC):
+class AbstractStep(AbstractPipelineElement, ABC):
 
     def __init__(self,
                  name: str,

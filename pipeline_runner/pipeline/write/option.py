@@ -1,17 +1,20 @@
 from abc import ABC
 from typing import List
 
+from pipeline_runner.pipeline.abstract import AbstractJsonElement
 
-class DstOptions(ABC):
+
+class DstOptions(AbstractJsonElement, ABC):
 
     def __init__(self,
                  destination_type: str,
-                 savemode: str,
+                 save_mode: str,
                  partition_by: List[str],
                  coalesce: int):
 
+        super().__init__()
         self._destination_type = destination_type
-        self._savemode = savemode
+        self._save_mode = save_mode
         self._partition_by = partition_by
         self._coalesce = coalesce
 
@@ -21,7 +24,7 @@ class DstOptions(ABC):
 
     @property
     def savemode(self) -> str:
-        return self._savemode
+        return self._save_mode
 
     @property
     def partition_by(self) -> List[str]:
@@ -31,21 +34,17 @@ class DstOptions(ABC):
     def coalesce(self) -> int:
         return self._coalesce
 
-    @classmethod
-    def from_dict(cls, input_dict: dict):
-        return cls(**input_dict)
-
 
 class FileDstOptions(DstOptions, ABC):
 
     def __init__(self,
                  destination_type: str,
-                 savemode: str,
+                 save_mode: str,
                  path: str,
                  partition_by: List[str],
                  coalesce: int):
 
-        super().__init__(destination_type, savemode, partition_by, coalesce)
+        super().__init__(destination_type, save_mode, partition_by, coalesce)
 
         self._path = path
 
@@ -58,14 +57,14 @@ class TableDstOptions(DstOptions, ABC):
 
     def __init__(self,
                  destination_type: str,
-                 savemode: str,
+                 save_mode: str,
                  db_name: str,
                  table_name: str,
                  create_database_if_not_exists: str,
                  partition_by: List[str],
                  coalesce: int):
 
-        super().__init__(destination_type, savemode, partition_by, coalesce)
+        super().__init__(destination_type, save_mode, partition_by, coalesce)
 
         self._db_name = db_name
         self._table_name = table_name
@@ -88,7 +87,7 @@ class HiveTableDstOptions(TableDstOptions):
 
     def __init__(self,
                  destination_type: str,
-                 savemode: str,
+                 save_mode: str,
                  db_name: str,
                  table_name: str,
                  create_database_if_not_exists: str = None,
@@ -97,7 +96,7 @@ class HiveTableDstOptions(TableDstOptions):
                  partition_by: List[str] = None,
                  coalesce: int = None):
 
-        super().__init__(destination_type, savemode, db_name, table_name, create_database_if_not_exists, partition_by, coalesce)
+        super().__init__(destination_type, save_mode, db_name, table_name, create_database_if_not_exists, partition_by, coalesce)
 
         self._table_location = table_location
         self._db_location = db_location
@@ -115,24 +114,24 @@ class JDBCTableDstOptions(TableDstOptions):
 
     def __init__(self,
                  destination_type: str,
-                 savemode: str,
+                 save_mode: str,
                  db_name: str,
                  table_name: str,
                  jdbc_url: str,
                  jdbc_driver: str,
-                 jdbc_username: str,
-                 jdbc_password: str,
+                 jdbc_user: str,
+                 jdbc_pass_word: str,
                  jdbc_use_ssl: str = None,
                  create_database_if_not_exists: str = None,
                  partition_by: List[str] = None,
                  coalesce: int = None):
 
-        super().__init__(destination_type, savemode, db_name, table_name, create_database_if_not_exists, partition_by, coalesce)
+        super().__init__(destination_type, save_mode, db_name, table_name, create_database_if_not_exists, partition_by, coalesce)
 
         self._jdbc_url = jdbc_url
         self._jdbc_driver = jdbc_driver
-        self._jdbc_username = jdbc_username
-        self._jdbc_password = jdbc_password
+        self._jdbc_user = jdbc_user
+        self._jdbc_pass_word = jdbc_pass_word
         self._jdbc_use_ssl = jdbc_use_ssl
 
     @property
@@ -144,12 +143,12 @@ class JDBCTableDstOptions(TableDstOptions):
         return self._jdbc_driver
 
     @property
-    def username(self) -> str:
-        return self._jdbc_username
+    def user(self) -> str:
+        return self._jdbc_user
 
     @property
-    def password(self) -> str:
-        return self._jdbc_password
+    def pass_word(self) -> str:
+        return self._jdbc_pass_word
 
     @property
     def use_ssl(self) -> str:
@@ -160,14 +159,14 @@ class CsvDstOptions(FileDstOptions):
 
     def __init__(self,
                  destination_type: str,
-                 savemode: str,
+                 save_mode: str,
                  path: str,
                  header: str,
                  sep: str,
                  partition_by: List[str] = None,
                  coalesce: int = None):
 
-        super().__init__(destination_type, savemode, path, partition_by, coalesce)
+        super().__init__(destination_type, save_mode, path, partition_by, coalesce)
 
         self._header = header
         self._sep = sep

@@ -1,10 +1,10 @@
-from abc import ABC
 from typing import List, Union
 
+from pipeline_runner.pipeline.abstract import AbstractJsonElement
 from pipeline_runner.utils.time import JAVA_PYTHON_DT_FORMAT_CONVERTER, JAVA_PYTHON_TS_FORMAT_CONVERTER
 
 
-class DateOrTimestampMetadata(ABC):
+class DateOrTimestampMetadata(AbstractJsonElement):
 
     def __init__(self,
                  is_date: bool,
@@ -14,6 +14,8 @@ class DateOrTimestampMetadata(ABC):
                  corrupt_flag: bool = False,
                  corrupt_probability: float = None,
                  corrupt_format: str = None):
+
+        super().__init__()
 
         from datetime import date, datetime
         from pipeline_runner.utils.time import to_datetime, to_date
@@ -59,10 +61,6 @@ class DateColumnMetadata(DateOrTimestampMetadata):
                          corrupt_probability,
                          corrupt_format)
 
-    @classmethod
-    def from_dict(cls, input_dict: dict):
-        return cls(**input_dict)
-
 
 class TimestampColumnMetadata(DateOrTimestampMetadata):
 
@@ -83,20 +81,14 @@ class TimestampColumnMetadata(DateOrTimestampMetadata):
                          corrupt_probability,
                          corrupt_format)
 
-    @classmethod
-    def from_dict(cls, input_dict: dict):
-        return cls(**input_dict)
 
-
-class RandomColumnMetadata:
+class RandomColumnMetadata(AbstractJsonElement):
 
     def __init__(self,
                  values: List[Union[str, float, int]],
                  p: List[float] = None):
 
+        super().__init__()
+
         self.values = values
         self.p = [1/len(values)] * len(values) if p is None else p
-
-    @classmethod
-    def from_dict(cls, input_dict: dict):
-        return cls(**input_dict)

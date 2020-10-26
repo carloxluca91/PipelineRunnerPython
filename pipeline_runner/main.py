@@ -43,7 +43,7 @@ if __name__ == '__main__':
         logger.info(f"Pipeline .json file '{pipeline_json_file_path}' exists")
         if os.path.exists(ini_file_path):
 
-            logger.info(f"Spark application .ini file '{ini_file_path}' exists. Thus, evertyhing needed is in place")
+            logger.info(f"Spark application .ini file '{ini_file_path}' exists. Thus, evertyhing needed seems to be in place")
             job_properties: configparser.ConfigParser = configparser.ConfigParser(interpolation=configparser.ExtendedInterpolation())
             with open(ini_file_path, mode="r", encoding="UTF-8") as f:
 
@@ -54,7 +54,10 @@ if __name__ == '__main__':
 
                 json_dict: dict = json.load(f)
 
-            pipeline = Pipeline(job_properties, **json_dict)
+            pipeline_input_dict = json_dict
+            pipeline_input_dict["job_properties"] = job_properties
+
+            pipeline = Pipeline.from_dict(pipeline_input_dict)
             logger.info(f"Successfully parsed pipeline specification file '{pipeline_json_file_path}' as a {Pipeline.__name__}")
             pipeline.run()
 

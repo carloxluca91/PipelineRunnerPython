@@ -4,9 +4,9 @@ from typing import Dict
 
 from pyspark.sql import DataFrame, SparkSession
 
-from pipeline_runner.pipeline.abstract import AbstractPipelineStep
+from pipeline_runner.pipeline.abstract import AbstractStep
 from pipeline_runner.pipeline.write.option import CsvDstOptions, HiveTableDstOptions, JDBCTableDstOptions
-from pipeline_runner.pipeline.write.writer import HiveTableWriter
+from pipeline_runner.pipeline.write.writer import HiveTableWriter, JDBCTableWriter
 
 DST_OPTIONS_TYPE_SWITCH = {
 
@@ -16,17 +16,7 @@ DST_OPTIONS_TYPE_SWITCH = {
 }
 
 
-def _get(job_properties: configparser.ConfigParser, section: str, key: str):
-
-    return job_properties[section][key]
-
-
-def _get_or_else(job_properties: configparser.ConfigParser, section: str, key: str, default_value):
-
-    return default_value if key is None else _get(job_properties, section, key)
-
-
-class WriteStep(AbstractPipelineStep):
+class WriteStep(AbstractStep):
 
     def __init__(self,
                  spark_session: SparkSession,
@@ -40,12 +30,8 @@ class WriteStep(AbstractPipelineStep):
 
         self._logger = logging.getLogger(__name__)
         self._spark_session = spark_session
-        self._dst_type = dst_options["destination_type"]
+        self._dst_type = dst_options["destinationType"]
         self._dst_options = DST_OPTIONS_TYPE_SWITCH[self._dst_type].from_dict(dst_options)
-
-    @classmethod
-    def from_session_plus_dict(cls, spark_session: SparkSession, input_dict: dict):
-        return cls(spark_session, **input_dict)
 
     @property
     def dst_type(self) -> str:
@@ -53,8 +39,12 @@ class WriteStep(AbstractPipelineStep):
 
     def write(self, df_dict: Dict[str, DataFrame], job_properties: configparser.ConfigParser) -> None:
 
+        dst_options = self._dst_options
         df: DataFrame = df_dict[self.dataframe_id]
-        if isinstance(self._dst_options, HiveTableDstOptions):
+        if isinstance(dst_options, HiveTableDstOptions):
 
-            HiveTableWriter(job_properties, self._dst_options, self._spark_session).write(df)
+            HiveTableWriter(job_properties, dst_options, self._spark_session).write(df)
 
+        elif isinstance(dst_options, JDBCTableDstOptions):
+
+            JDBCTableWriter(job_properties, dst_options).write(df)
