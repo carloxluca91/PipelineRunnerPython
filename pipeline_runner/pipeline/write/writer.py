@@ -9,7 +9,6 @@ from pyspark.sql import DataFrame, SparkSession
 
 from pipeline_runner.pipeline.write.option import HiveTableDstOptions, JDBCTableDstOptions
 from pipeline_runner.utils.jdbc import get_spark_writer_jdbc_options, get_connector_options
-from pipeline_runner.utils.spark import df_print_schema
 
 
 class AbstractWriter(ABC):
@@ -58,12 +57,8 @@ class HiveTableWriter(TableWriter):
         dst_type = self._dst_type
         dst_options = self._dst_options
 
-        existing_databases: List[str] = [db.name for db in spark_session.catalog.listDatabases()]
-        if db_name in existing_databases:
-
-            logger.warning(f"Hive database '{db_name}' already exists. Thus, not creating it again")
-
-        else:
+        existing_databases: List[str] = [db.name.lower() for db in spark_session.catalog.listDatabases()]
+        if db_name.lower() not in existing_databases:
 
             # CHECK CREATE DATABASE PATH
             create_db_location = self._get_or_else(dst_type, dst_options.db_location, None)
@@ -75,6 +70,10 @@ class HiveTableWriter(TableWriter):
             logger.info(f"Creating Hive database '{db_name}' at " + location_info)
             spark_session.sql(create_db_statement_with_location)
             logger.info(f"Successfully created Hive database '{db_name}' at " + location_info)
+
+        else:
+
+            logger.warning(f"Hive database '{db_name}' already exists. Thus, not much to do")
 
     def write(self, df: DataFrame) -> None:
 
@@ -98,8 +97,8 @@ class HiveTableWriter(TableWriter):
 
             self._create_database_if_not_exists(db_name)
 
-        existing_tables: List[str] = [tbl.name for tbl in spark_session.catalog.listTables(db_name)]
-        if table_name in existing_tables:
+        existing_tables: List[str] = [tbl.name.lower() for tbl in spark_session.catalog.listTables(db_name)]
+        if table_name.lower() in existing_tables:
 
             logger.info(f"Hive table '{db_name}.{table_name}' already exists. Starting to insert data within with savemode '{savemode}'")
             df_to_write_coalesce\
@@ -165,18 +164,18 @@ class JDBCTableWriter(TableWriter):
         mysql_cursor.execute("SHOW DATABASES")
 
         # GET LIST OF EXISTING DATABASES
-        existing_databases: List[str] = list(map(lambda x: x[0], mysql_cursor))
+        existing_databases: List[str] = list(map(lambda x: x[0].lower(), mysql_cursor))
 
         # CHECK IF GIVEN DATABASE ALREADY EXISTS
-        if db_name not in existing_databases:
+        if db_name.lower() not in existing_databases:
 
             logger.warning(f"JDBC database '{db_name}' does not exist yet. Attempting to create it now")
             mysql_cursor.execute(f"CREATE DATABASE IF NOT EXISTS {db_name}")
-            logger.info(f"Successuflly created JDBC database '{db_name}'")
+            logger.info(f"Successfully created JDBC database '{db_name}'")
 
         else:
 
-            logger.info(f"JDBC database '{db_name}' already exists. So, not much to do :)")
+            logger.info(f"JDBC database '{db_name}' already exists. Thus, not much to do")
 
     def write(self, df: DataFrame) -> None:
 
@@ -196,8 +195,7 @@ class JDBCTableWriter(TableWriter):
             self._create_database_if_not_exists(db_name)
 
         full_table_name: str = f"{db_name}.{table_name}"
-        logger.info(f"Starting to insert data into table '{full_table_name}' using savemode '{savemode}'")
-        logger.info(f"DataFrame to be written has schema: \n{df_print_schema(df)}")
+        logger.info(f"Starting to insert data into JDBC table '{full_table_name}' using savemode '{savemode}'")
 
         df.write \
             .format("jdbc") \
@@ -206,4 +204,4 @@ class JDBCTableWriter(TableWriter):
             .mode(savemode) \
             .save()
 
-        logger.info(f"Successfully inserted data into table '{full_table_name}' using savemode '{savemode}'")
+        logger.info(f"Successfully inserted data into JDBC table '{full_table_name}' using savemode '{savemode}'")

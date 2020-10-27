@@ -15,7 +15,7 @@ DATA_TYPE_DICT = {
 }
 
 
-def df_print_schema(df: DataFrame) -> str:
+def df_schema_tree_string(df: DataFrame) -> str:
 
     schema_json: dict = df.schema.jsonValue()
     schema_str_list: List[str] = list(map(lambda x:
@@ -37,6 +37,7 @@ class JDBCLogRecord:
                  pipeline_name: str,
                  pipeline_description: str,
                  pipeline_id: str,
+                 step_index: int,
                  step_name: str,
                  step_description: str,
                  step_type: str,
@@ -54,6 +55,7 @@ class JDBCLogRecord:
         self.pipeline_name = pipeline_name
         self.pipeline_description = pipeline_description
         self.pipeline_id = pipeline_id
+        self.step_index = step_index
         self.step_name = step_name
         self.step_description = step_description
         self.step_type = step_type
@@ -74,6 +76,7 @@ class JDBCLogRecord:
                            StructField("pipeline_name", StringType(), True),
                            StructField("pipeline_description", StringType(), True),
                            StructField("pipeline_id", StringType(), True),
+                           StructField("step_index", IntegerType(), True),
                            StructField("step_name", StringType(), True),
                            StructField("step_description", StringType(), True),
                            StructField("step_type", StringType(), True),

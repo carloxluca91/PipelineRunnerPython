@@ -7,6 +7,7 @@ from pyspark.sql import DataFrame, SparkSession
 from pipeline_runner.pipeline.abstract import AbstractStep
 from pipeline_runner.pipeline.write.option import CsvDstOptions, HiveTableDstOptions, JDBCTableDstOptions
 from pipeline_runner.pipeline.write.writer import HiveTableWriter, JDBCTableWriter
+from pipeline_runner.utils.spark import df_schema_tree_string
 
 DST_OPTIONS_TYPE_SWITCH = {
 
@@ -41,6 +42,8 @@ class WriteStep(AbstractStep):
 
         dst_options = self._dst_options
         df: DataFrame = df_dict[self.dataframe_id]
+
+        self._logger.info(f"Dataframe to be written has schema:\n" + df_schema_tree_string(df))
         if isinstance(dst_options, HiveTableDstOptions):
 
             HiveTableWriter(job_properties, dst_options, self._spark_session).write(df)
