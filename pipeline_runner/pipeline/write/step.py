@@ -9,7 +9,7 @@ from pipeline_runner.pipeline.write.option import CsvDstOptions, HiveTableDstOpt
 from pipeline_runner.pipeline.write.writer import HiveTableWriter, JDBCTableWriter
 from pipeline_runner.utils.spark import df_schema_tree_string
 
-DST_OPTIONS_TYPE_SWITCH = {
+DST_OPTIONS_TYPE = {
 
     "csv": CsvDstOptions,
     "hive": HiveTableDstOptions,
@@ -32,7 +32,7 @@ class WriteStep(AbstractStep):
         self._logger = logging.getLogger(__name__)
         self._spark_session = spark_session
         self._dst_type = dst_options["destinationType"]
-        self._dst_options = DST_OPTIONS_TYPE_SWITCH[self._dst_type].from_dict(dst_options)
+        self._dst_options = DST_OPTIONS_TYPE[self._dst_type].from_dict(dst_options)
 
     @property
     def dst_type(self) -> str:
@@ -41,9 +41,9 @@ class WriteStep(AbstractStep):
     def write(self, df_dict: Dict[str, DataFrame], job_properties: configparser.ConfigParser) -> None:
 
         dst_options = self._dst_options
-        df: DataFrame = df_dict[self.dataframe_id]
+        df = df_dict[self.dataframe_id]
 
-        self._logger.info(f"Dataframe to be written has schema:\n" + df_schema_tree_string(df))
+        self._logger.info(f"Dataframe to be written during write step '{self.name}' has schema:\n" + df_schema_tree_string(df))
         if isinstance(dst_options, HiveTableDstOptions):
 
             HiveTableWriter(job_properties, dst_options, self._spark_session).write(df)

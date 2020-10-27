@@ -3,13 +3,14 @@ from typing import List
 
 from pyspark.sql import DataFrame
 from pyspark.sql.types import StructType, StructField
-from pyspark.sql.types import StringType, IntegerType, DoubleType, DateType, TimestampType
+from pyspark.sql.types import StringType, IntegerType, DoubleType, LongType, DateType, TimestampType
 
 DATA_TYPE_DICT = {
 
     "string": StringType(),
     "int": IntegerType(),
     "double": DoubleType(),
+    "long": LongType(),
     "date": DateType(),
     "timestamp": TimestampType()
 }
@@ -21,7 +22,7 @@ def df_schema_tree_string(df: DataFrame) -> str:
     schema_str_list: List[str] = list(map(lambda x:
                                           f" |-- {x['name']}: {x['type']} (nullable: {str(x['nullable']).lower()})",
                                           schema_json["fields"]))
-    schema_str_list.insert(0, "\nroot")
+    schema_str_list.insert(0, "\n\nroot")
     schema_str_list.append("\n")
 
     return "\n".join(schema_str_list)
