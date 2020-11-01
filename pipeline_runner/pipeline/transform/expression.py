@@ -2,73 +2,84 @@ import logging
 import re
 from abc import abstractmethod, ABC
 from enum import Enum, unique
-from functools import partial
-from typing import Callable
 
 from pyspark.sql import Column
 from pyspark.sql import functions
 
 
 @unique
-class ColumnExpressionRegex(Enum):
+class ColumnExpression(Enum):
 
-    DF_COL = r"^(col)\('(\w+)'\)$"
-    LIT_COL = r"^(lit)\('([\w|\-|:]+)'\)$"
-    SUBSTRING = r"^(substring)\(([\w|\(|'|,|\)|\s]+\)),\s(\d+),\s(\d+)\)$"
+    CURRENT_DATE_OR_TIMESTAMP = r"^(current_date|current_timestamp)\(\)$", True
+    DF_COL = r"^(col)\('(\w+)'\)$", True
+    LIT_COL = r"^(lit)\('([\w|\-|:]+)'\)$", True
+    SUBSTRING = r"^(substring)\(([\w|\(|'|,|\)|\s]+\)),\s(\d+),\s(\d+)\)$", False
+    TO_DATE_OR_TIMESTAMP = r"^(to_date|to_timestamp)\((.+\)), '(.+)'\)$", False
 
-    def __init__(self, regex_pattern: str):
+    def __init__(self, regex: str, is_static: bool):
 
-        self.regex_pattern = regex_pattern
+        self._regex = regex
+        self._is_static = is_static
+
+    @property
+    def regex(self) -> str:
+
+        return self._regex
+
+    @property
+    def is_static(self) -> bool:
+
+        return self._is_static
+
+    def match(self, column_expression: str) -> re.Match:
+
+        return re.match(self.regex, column_expression)
 
 
-class AbstractColumnTransformation(ABC):
+class AbstractColumnExpression(ABC):
 
     def __init__(self,
                  string: str,
-                 column_expression_regex: ColumnExpressionRegex):
+                 column_expression_regex: ColumnExpression):
 
         self._logger = logging.getLogger(__name__)
-        self._regex_match = re.search(column_expression_regex.regex_pattern, string)
+        self._match = re.match(column_expression_regex.regex, string)
 
-        self._function_name: str = self._get_group(1)
-        self._nested_function_str: str = self._get_group(2)
+        self._function_name: str = self._group(1)
+        self._nested_function: str = self._group(2)
 
     @property
     def function_name(self):
         return self._function_name
 
     @property
-    def nested_function_str(self) -> str:
-        return self._nested_function_str
+    def nested_function(self) -> str:
+        return self._nested_function
 
+    @property
     @abstractmethod
-    def _transformation_function(self) -> Callable[[Column], Column]:
+    def to_string(self) -> str:
         pass
 
     @abstractmethod
-    def _transformation_description(self) -> str:
-        pass
-
     def transform(self, input_column: Column) -> Column:
+        pass
 
-        self._logger.info(self._transformation_description)
-        return self._transformation_function()(input_column)
+    def _group(self, i: int):
 
-    def _get_group(self, i: int):
-
-        return None if self._regex_match is None \
-            else self._regex_match.group(i)
+        return None if self._match is None \
+            else self._match.group(i)
 
 
-class SubstringTransformation(AbstractColumnTransformation):
+class SubstringExpression(AbstractColumnExpression):
 
     def __init__(self,
                  string: str):
 
-        super().__init__(string, ColumnExpressionRegex.SUBSTRING)
+        super().__init__(string, ColumnExpression.SUBSTRING)
 
-        self._substring_start_index: int = int(self._regex_match.group(3))
-        self._substring_length: int = int(self._regex_match.group(4))
+        self._substring_start_index: int = int(self._group(3))
+        self._substring_length: int = int(self._group(4))
 
     @property
     def pos(self):
@@ -80,21 +91,43 @@ class SubstringTransformation(AbstractColumnTransformation):
 
         return self._substring_length
 
-    def _transformation_description(self) -> str:
+    @property
+    def to_string(self) -> str:
 
-        return f"substring({self.nested_function_str}, " \
-               f"start_index = '{self._substring_start_index}', " \
-               f"length = '{self._substring_length}')"
+        return f"${self.function_name}({self.nested_function}, pos = '{self.pos}', length = '{self.length}')"
 
-    def _transformation_function(self) -> Callable[[Column], Column]:
+    def transform(self, input_column: Column) -> Column:
 
-        return partial(functions.substring,
-                       self._substring_start_index,
-                       self._substring_length).func
+        return functions.substring(input_column, pos=self.pos, len=self.length)
+
+
+class ToDateOrTimestampExpression(AbstractColumnExpression):
+
+    def __init__(self, string: str):
+
+        super().__init__(string, ColumnExpression.TO_DATE_OR_TIMESTAMP)
+
+        self._format = self._group(3)
+
+    @property
+    def format(self) -> str:
+
+        return self._format
+
+    @property
+    def to_string(self) -> str:
+
+        return f"{self.function_name}({self.nested_function}, format = '{self.format}')"
+
+    def transform(self, input_column: Column) -> Column:
+
+        is_to_date = self.function_name.lower() == "to_date"
+        return functions.to_date(input_column, self.format) if is_to_date else functions.to_timestamp(input_column, self.format)
 
 
 COLUMN_EXPRESSION_DICT = {
 
-    ColumnExpressionRegex.SUBSTRING: SubstringTransformation
+    ColumnExpression.SUBSTRING: SubstringExpression,
+    ColumnExpression.TO_DATE_OR_TIMESTAMP: ToDateOrTimestampExpression
 
 }

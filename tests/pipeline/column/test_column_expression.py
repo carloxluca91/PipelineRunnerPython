@@ -14,14 +14,14 @@ class TestColumnExpression(AbstractTestCase):
 
     def test_substring_transformation(self):
 
-        from pipeline.transform.expression import SubstringTransformation
-        from pipeline.transform.expression import ColumnExpressionRegex
+        from pipeline.transform.expression import SubstringExpression
+        from pipeline.transform.expression import ColumnExpression
 
         substring_start_index = 0
         substring_length = 5
         column_name = "dt_inserimento"
 
-        substring_regex = ColumnExpressionRegex.SUBSTRING.regex_pattern
+        substring_regex = ColumnExpression.SUBSTRING._regex
         expression_list: List[str] = [f"substring(col('{column_name}'), {substring_start_index}, {substring_length})",
                                       f"substring(lpad(col('{column_name}'), 10, '0'), {substring_start_index}, {substring_length})"]
 
@@ -30,7 +30,7 @@ class TestColumnExpression(AbstractTestCase):
             self._logger.info(f"Checking expression # {index}: '{expression}'")
             self.assertIsNotNone(re.match(substring_regex, expression))
 
-            substring_transformation = SubstringTransformation(expression)
+            substring_transformation = SubstringExpression(expression)
             self.assertEqual(substring_start_index, substring_transformation.pos)
             self.assertEqual(substring_length, substring_transformation.length)
 
