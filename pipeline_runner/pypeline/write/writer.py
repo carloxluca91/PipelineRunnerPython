@@ -8,7 +8,7 @@ from mysql import connector
 from pyspark.sql import DataFrame, SparkSession
 
 from pypeline.write.option import HiveTableDstOptions, JDBCTableDstOptions
-from utils.jdbc import get_spark_writer_jdbc_options, get_connector_options
+from utils.jdbc import create_database_if_not_exists, get_spark_writer_jdbc_options, get_connector_options
 
 
 class AbstractWriter(ABC):
@@ -157,25 +157,7 @@ class JDBCTableWriter(TableWriter):
 
     def _create_database_if_not_exists(self, db_name: str) -> None:
 
-        logger = self._logger
-        mysql_cursor = self._mysql_cursor
-
-        logger.info(f"Checking existence of JDBC database '{db_name}'")
-        mysql_cursor.execute("SHOW DATABASES")
-
-        # GET LIST OF EXISTING DATABASES
-        existing_databases: List[str] = list(map(lambda x: x[0].lower(), mysql_cursor))
-
-        # CHECK IF GIVEN DATABASE ALREADY EXISTS
-        if db_name.lower() not in existing_databases:
-
-            logger.warning(f"JDBC database '{db_name}' does not exist yet. Attempting to create it now")
-            mysql_cursor.execute(f"CREATE DATABASE IF NOT EXISTS {db_name}")
-            logger.info(f"Successfully created JDBC database '{db_name}'")
-
-        else:
-
-            logger.info(f"JDBC database '{db_name}' already exists. Thus, not much to do")
+        create_database_if_not_exists(self._mysql_cursor, db_name)
 
     def write(self, df: DataFrame) -> None:
 

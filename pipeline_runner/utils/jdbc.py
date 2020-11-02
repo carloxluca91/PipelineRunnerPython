@@ -2,9 +2,30 @@ import logging
 from configparser import ConfigParser
 from typing import List, Dict
 
+from mysql.connector.cursor_cext import CMySQLCursor
 from pyspark.sql import DataFrame
 
 logger = logging.getLogger(__name__)
+
+
+def create_database_if_not_exists(mysql_cursor: CMySQLCursor, db_name: str):
+
+    logger.info(f"Checking existence of JDBC database '{db_name}'")
+    mysql_cursor.execute("SHOW DATABASES")
+
+    # GET LIST OF EXISTING DATABASES
+    existing_databases: List[str] = list(map(lambda x: x[0].lower(), mysql_cursor))
+
+    # CHECK IF GIVEN DATABASE ALREADY EXISTS
+    if db_name.lower() not in existing_databases:
+
+        logger.warning(f"JDBC database '{db_name}' does not exist yet. Attempting to create it now")
+        mysql_cursor.execute(f"CREATE DATABASE IF NOT EXISTS {db_name}")
+        logger.info(f"Successfully created JDBC database '{db_name}'")
+
+    else:
+
+        logger.info(f"JDBC database '{db_name}' already exists. Thus, not much to do")
 
 
 def get_create_table_from_df(df: DataFrame, db_name: str, table_name: str) -> str:

@@ -3,13 +3,15 @@ from configparser import ConfigParser
 from datetime import date, datetime
 from typing import List, Dict, Tuple
 
+import mysql
+from mysql import connector
 from pyspark import SparkContext
 from pyspark.sql import DataFrame, SparkSession
 
 from pypeline.abstract import AbstractPipelineElement, AbstractStep
 from pypeline.create.step import CreateStep
 from pypeline.write.step import WriteStep
-from utils.jdbc import get_spark_writer_jdbc_options
+from utils.jdbc import create_database_if_not_exists, get_connector_options, get_spark_writer_jdbc_options
 from utils.spark import JDBCLogRecord, df_schema_tree_string
 
 
@@ -51,8 +53,8 @@ class Pipeline(AbstractPipelineElement):
             .getOrCreate()
             
         self._logger.info(f"Successfully got or created SparkSession for application '{self._spark_session.sparkContext.appName}'. "
-                           f"Application Id: '{self._spark_session.sparkContext.applicationId}', "
-                           f"UI url: {self._spark_session.sparkContext.uiWebUrl}")
+                          f"Application Id: '{self._spark_session.sparkContext.applicationId}', "
+                          f"UI url: {self._spark_session.sparkContext.uiWebUrl}")
 
         self._df_dict: Dict[str, DataFrame] = {}
         self._jdbc_log_records: List[JDBCLogRecord] = []
@@ -80,9 +82,7 @@ class Pipeline(AbstractPipelineElement):
         if self._any_create_step:
 
             create_steps: List[dict] = self._pipeline_steps["createSteps"]
-            logger.info(f"Identified {self._create_steps_number} create step(s) within pipeline "
-                              f"'{self.name}' "
-                              f"('{self.description}')")
+            logger.info(f"Identified {self._create_steps_number} create step(s) within pipeline {self.name}'")
 
             for index, raw_create_step in enumerate(create_steps, start=1):
 
@@ -92,6 +92,10 @@ class Pipeline(AbstractPipelineElement):
                     raw_create_step["spark_session"] = self._spark_session
                     create_step = CreateStep.from_dict(raw_create_step)
                     logger.info(f"Successfully initialized create step # {index} ('{create_step.name}')")
+                    if create_step.dataframe_id in list(df_dict.keys()):
+
+                        logger.warning(f"DataframeId '{create_step.dataframe_id}' already exists. Thus, related Dataframe will be overriden")
+
                     df_dict[create_step.dataframe_id] = create_step.create()
                     logger.info(f"Updated df dict with dataframeId of create step # {index} ('{create_step.name}'), i.e. '{create_step.dataframe_id}'")
 
@@ -213,8 +217,13 @@ class Pipeline(AbstractPipelineElement):
         logger.info(f"Successfully turned list of {len(jdbc_log_records)} {JDBCLogRecord.__name__}(s) into a {DataFrame.__name__}")
         logger.info(f"DataFrame to be written has schema:\n{df_schema_tree_string(logging_dataframe)}")
 
+        log_table_db_name = job_properties["jdbc"]["jdbc.default.database"]
         log_table_name_full = job_properties["jdbc"]["jdbc.default.logTable.full"]
         log_table_savemode = job_properties["jdbc"]["jdbc.default.logTable.saveMode"]
+
+        mysql_connection = mysql.connector.connect(**get_connector_options(job_properties))
+        logger.info(f"Successfully estabilished JDBC connection with default coordinates")
+        create_database_if_not_exists(mysql_connection.cursor(), log_table_db_name)
 
         logger.info(f"Starting to insert data into table '{log_table_name_full}' using save_mode '{log_table_savemode}'")
 
