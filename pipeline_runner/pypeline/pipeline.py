@@ -63,7 +63,7 @@ class Pipeline(AbstractPipelineElement):
 
     def run(self):
 
-        self._logger.info(f"Kicking off pipeline '{self.name}' ('{self.description}')")
+        self._logger.info(f"Kicking off pipeline '{self.name}'")
 
         if self._run_create_steps():
 
