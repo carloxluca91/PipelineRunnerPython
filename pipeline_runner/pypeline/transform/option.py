@@ -1,7 +1,7 @@
 from abc import ABC
 from typing import List
 
-from pipeline_runner.pipeline.abstract import AbstractJsonElement
+from pypeline.abstract import AbstractJsonElement
 
 
 class TransformationOptions(AbstractJsonElement, ABC):

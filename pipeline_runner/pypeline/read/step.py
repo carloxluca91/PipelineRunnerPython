@@ -3,10 +3,10 @@ from configparser import ConfigParser
 
 from pyspark.sql import DataFrame, SparkSession
 
-from pipeline_runner.pipeline.abstract import AbstractStep
-from pipeline_runner.pipeline.read.option import HiveTableSrcOptions, CsvSrcOptions
-from pipeline_runner.pipeline.read.reader import CsvReader, HiveTableReader
-from pipeline_runner.utils.spark import df_schema_tree_string
+from pypeline.abstract import AbstractStep
+from pypeline.read.option import HiveTableSrcOptions, CsvSrcOptions
+from pypeline.read.reader import CsvReader, HiveTableReader
+from utils.spark import df_schema_tree_string
 
 SRC_OPTIONS_TYPE = {
 

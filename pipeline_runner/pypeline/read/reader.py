@@ -6,9 +6,9 @@ from typing import Union
 from pyspark.sql import SparkSession, DataFrame
 from pyspark.sql.types import StructType, StructField
 
-from pipeline_runner.pipeline.read.option import CsvSrcOptions, HiveTableSrcOptions
-from pipeline_runner.utils.json import load_json
-from pipeline_runner.utils.spark import DATA_TYPE_DICT
+from pypeline.read.option import CsvSrcOptions, HiveTableSrcOptions
+from utils.json import load_json
+from utils.spark import DATA_TYPE_DICT
 
 
 class AbstractReader(ABC):

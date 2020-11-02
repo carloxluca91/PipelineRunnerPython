@@ -7,8 +7,8 @@ import mysql
 from mysql import connector
 from pyspark.sql import DataFrame, SparkSession
 
-from pipeline_runner.pipeline.write.option import HiveTableDstOptions, JDBCTableDstOptions
-from pipeline_runner.utils.jdbc import get_spark_writer_jdbc_options, get_connector_options
+from pypeline.write.option import HiveTableDstOptions, JDBCTableDstOptions
+from utils.jdbc import get_spark_writer_jdbc_options, get_connector_options
 
 
 class AbstractWriter(ABC):

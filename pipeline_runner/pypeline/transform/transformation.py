@@ -4,13 +4,12 @@ from typing import Dict
 
 from pyspark.sql import DataFrame, Column
 
-from pipeline_runner.pipeline.abstract import AbstractStep
-from pipeline_runner.pipeline.transform.option import \
-    WithColumnTransformationOptions, \
+from pypeline.abstract import AbstractStep
+from pypeline.transform.option import WithColumnTransformationOptions, \
     DropColumnTransformationOptions, \
     SelectTransformationOptions
 
-from pipeline_runner.pipeline.transform.parser import ColumnExpressionParser
+from pypeline.transform.parser import ColumnExpressionParser
 
 
 class AbstractTransformation(AbstractStep, ABC):

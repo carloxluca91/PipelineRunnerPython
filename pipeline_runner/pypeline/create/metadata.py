@@ -1,7 +1,7 @@
 from typing import List, Union
 
-from pipeline_runner.pipeline.abstract import AbstractJsonElement
-from pipeline_runner.utils.time import JAVA_PYTHON_DT_FORMAT_CONVERTER, JAVA_PYTHON_TS_FORMAT_CONVERTER
+from pypeline.abstract import AbstractJsonElement
+from utils.time import JAVA_PYTHON_DT_FORMAT_CONVERTER, JAVA_PYTHON_TS_FORMAT_CONVERTER
 
 
 class DateOrTimestampMetadata(AbstractJsonElement):

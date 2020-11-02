@@ -14,8 +14,8 @@ class TestColumnExpression(AbstractTestCase):
 
     def test_substring_transformation(self):
 
-        from pipeline.transform.expression import SubstringExpression
-        from pipeline.transform.expression import ColumnExpression
+        from pypeline.transform.expression import SubstringExpression
+        from pypeline.transform.expression import ColumnExpression
 
         substring_start_index = 0
         substring_length = 5

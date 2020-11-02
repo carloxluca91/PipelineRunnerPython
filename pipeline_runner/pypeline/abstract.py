@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-from pipeline_runner.utils.json import from_java_to_python_convention
+from utils.json import from_java_to_python_convention
 
 
 class AbstractJsonElement(ABC):

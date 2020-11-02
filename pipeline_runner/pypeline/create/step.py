@@ -4,9 +4,9 @@ from typing import List, Dict
 
 from pyspark.sql import DataFrame, SparkSession
 
-from pipeline_runner.pipeline.abstract import AbstractStep
-from pipeline_runner.pipeline.create.column import TypedColumn, DateOrTimestampColumn, RandomColumn
-from pipeline_runner.utils.spark import df_schema_tree_string
+from pypeline.abstract import AbstractStep
+from pypeline.create.column import TypedColumn, DateOrTimestampColumn, RandomColumn
+from utils.spark import df_schema_tree_string
 
 DATAFRAME_COLUMN_SWICTH = {
 

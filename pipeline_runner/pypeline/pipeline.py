@@ -6,11 +6,11 @@ from typing import List, Dict, Tuple
 from pyspark import SparkContext
 from pyspark.sql import DataFrame, SparkSession
 
-from pipeline_runner.pipeline.abstract import AbstractPipelineElement, AbstractStep
-from pipeline_runner.pipeline.create.step import CreateStep
-from pipeline_runner.pipeline.write.step import WriteStep
-from pipeline_runner.utils.jdbc import get_spark_writer_jdbc_options
-from pipeline_runner.utils.spark import JDBCLogRecord, df_schema_tree_string
+from pypeline.abstract import AbstractPipelineElement, AbstractStep
+from pypeline.create.step import CreateStep
+from pypeline.write.step import WriteStep
+from utils.jdbc import get_spark_writer_jdbc_options
+from utils.spark import JDBCLogRecord, df_schema_tree_string
 
 
 def _extract_step_info(step: dict) -> (str, str, str, str):

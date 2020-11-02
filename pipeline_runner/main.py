@@ -8,7 +8,7 @@ if __name__ == '__main__':
     import os
 
     from logging import config
-    from pipeline_runner.pipeline.pipeline import Pipeline
+    from pypeline.pipeline import Pipeline
 
     # LOGGING CONFIGURATION
     with open("pipeline_runner/logging.ini", "r", encoding="UTF-8") as f:
@@ -22,8 +22,8 @@ if __name__ == '__main__':
     parser.add_argument("-j", "--json",
                                 type=str,
                                 dest="pipeline_file",
-                                metavar=".json pipeline file",
-                                help=".json file containing the pipeline to be executed",
+                                metavar=".json pypeline file",
+                                help=".json file containing the pypeline to be executed",
                                 required=True)
 
     # OPTION -i, --ini
@@ -58,7 +58,7 @@ if __name__ == '__main__':
             pipeline_input_dict["job_properties"] = job_properties
 
             pipeline = Pipeline.from_dict(pipeline_input_dict)
-            logger.info(f"Successfully parsed pipeline specification file '{pipeline_json_file_path}' as a {Pipeline.__name__}")
+            logger.info(f"Successfully parsed pypeline specification file '{pipeline_json_file_path}' as a {Pipeline.__name__}")
             pipeline.run()
 
         else:

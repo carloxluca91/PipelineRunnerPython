@@ -3,7 +3,7 @@ import logging
 from pyspark.sql import Column
 from pyspark.sql import functions
 
-from pipeline.transform.expression import COLUMN_EXPRESSION_DICT, ColumnExpression
+from pypeline.transform.expression import COLUMN_EXPRESSION_DICT, ColumnExpression
 
 logger = logging.getLogger(__name__)
 

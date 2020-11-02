@@ -3,7 +3,7 @@ import logging
 import unittest
 from logging import config
 
-from pipeline_runner.pipeline.utils import load_json
+from pipeline_runner.pypeline.utils import load_json
 from tests.paths import PROJECT_JSON_TEST_DIRECTORY, LOGGING_INI_FILE
 
 

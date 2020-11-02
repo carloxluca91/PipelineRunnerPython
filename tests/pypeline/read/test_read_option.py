@@ -17,7 +17,7 @@ class TestReadOption(AbstractTestCase):
 
     def test_csv_option(self):
 
-        from pipeline_runner.pipeline.read.option import ReadCsvOptions
+        from pipeline_runner.pypeline.read.option import ReadCsvOptions
 
         self.assertTrue(len(self.read_options_list) > 1)
         first_option: dict = self.read_options_list[0]
@@ -35,7 +35,7 @@ class TestReadOption(AbstractTestCase):
 
     def test_parquet_options(self):
 
-        from pipeline_runner.pipeline.read.option import ReadParquetOptions
+        from pipeline_runner.pypeline.read.option import ReadParquetOptions
 
         self.assertTrue(len(self.read_options_list) > 2)
         third_option: dict = self.read_options_list[2]

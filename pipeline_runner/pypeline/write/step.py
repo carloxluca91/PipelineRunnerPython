@@ -4,10 +4,10 @@ from typing import Dict
 
 from pyspark.sql import DataFrame, SparkSession
 
-from pipeline_runner.pipeline.abstract import AbstractStep
-from pipeline_runner.pipeline.write.option import CsvDstOptions, HiveTableDstOptions, JDBCTableDstOptions
-from pipeline_runner.pipeline.write.writer import HiveTableWriter, JDBCTableWriter
-from pipeline_runner.utils.spark import df_schema_tree_string
+from pypeline.abstract import AbstractStep
+from pypeline.write.option import CsvDstOptions, HiveTableDstOptions, JDBCTableDstOptions
+from pypeline.write.writer import HiveTableWriter, JDBCTableWriter
+from utils.spark import df_schema_tree_string
 
 DST_OPTIONS_TYPE = {
 

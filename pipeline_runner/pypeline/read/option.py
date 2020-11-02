@@ -1,6 +1,6 @@
 from abc import ABC
 
-from pipeline_runner.pipeline.abstract import AbstractJsonElement
+from pypeline.abstract import AbstractJsonElement
 
 
 class SrcOptions(AbstractJsonElement, ABC):
