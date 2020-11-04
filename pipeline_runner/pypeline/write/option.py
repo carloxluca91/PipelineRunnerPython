@@ -60,7 +60,7 @@ class TableDstOptions(DstOptions, ABC):
                  save_mode: str,
                  db_name: str,
                  table_name: str,
-                 create_database_if_not_exists: str,
+                 create_db_if_not_exists: str,
                  partition_by: List[str],
                  coalesce: int):
 
@@ -68,7 +68,7 @@ class TableDstOptions(DstOptions, ABC):
 
         self._db_name = db_name
         self._table_name = table_name
-        self._create_database_if_not_exists = create_database_if_not_exists
+        self._create_db_if_not_exists = create_db_if_not_exists
 
     @property
     def db_name(self) -> str:
@@ -79,8 +79,8 @@ class TableDstOptions(DstOptions, ABC):
         return self._table_name
 
     @property
-    def create_database_if_not_exists(self) -> str:
-        return self._create_database_if_not_exists
+    def create_db_if_not_exists(self) -> str:
+        return self._create_db_if_not_exists
 
 
 class HiveTableDstOptions(TableDstOptions):
@@ -90,13 +90,13 @@ class HiveTableDstOptions(TableDstOptions):
                  save_mode: str,
                  db_name: str,
                  table_name: str,
-                 create_database_if_not_exists: str = None,
+                 create_db_if_not_exists: str = None,
                  table_location: str = None,
                  db_location: str = None,
                  partition_by: List[str] = None,
                  coalesce: int = None):
 
-        super().__init__(destination_type, save_mode, db_name, table_name, create_database_if_not_exists, partition_by, coalesce)
+        super().__init__(destination_type, save_mode, db_name, table_name, create_db_if_not_exists, partition_by, coalesce)
 
         self._table_location = table_location
         self._db_location = db_location
@@ -122,11 +122,11 @@ class JDBCTableDstOptions(TableDstOptions):
                  jdbc_user: str,
                  jdbc_pass_word: str,
                  jdbc_use_ssl: str = None,
-                 create_database_if_not_exists: str = None,
+                 create_db_if_not_exists: str = None,
                  partition_by: List[str] = None,
                  coalesce: int = None):
 
-        super().__init__(destination_type, save_mode, db_name, table_name, create_database_if_not_exists, partition_by, coalesce)
+        super().__init__(destination_type, save_mode, db_name, table_name, create_db_if_not_exists, partition_by, coalesce)
 
         self._jdbc_url = jdbc_url
         self._jdbc_driver = jdbc_driver

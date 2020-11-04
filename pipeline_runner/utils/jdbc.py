@@ -8,7 +8,7 @@ from pyspark.sql import DataFrame
 logger = logging.getLogger(__name__)
 
 
-def create_database_if_not_exists(mysql_cursor: CMySQLCursor, db_name: str):
+def create_db_if_not_exists(mysql_cursor: CMySQLCursor, db_name: str):
 
     logger.info(f"Checking existence of JDBC database '{db_name}'")
     mysql_cursor.execute("SHOW DATABASES")
@@ -28,6 +28,7 @@ def create_database_if_not_exists(mysql_cursor: CMySQLCursor, db_name: str):
         logger.info(f"JDBC database '{db_name}' already exists. Thus, not much to do")
 
 
+# noinspection PyPep8Naming
 def get_create_table_from_df(df: DataFrame, db_name: str, table_name: str) -> str:
 
     COLUMN_TYPE_DICT = {

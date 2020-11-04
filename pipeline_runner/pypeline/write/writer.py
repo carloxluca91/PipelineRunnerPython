@@ -8,7 +8,7 @@ from mysql import connector
 from pyspark.sql import DataFrame, SparkSession
 
 from pypeline.write.option import HiveTableDstOptions, JDBCTableDstOptions
-from utils.jdbc import create_database_if_not_exists, get_spark_writer_jdbc_options, get_connector_options
+from utils.jdbc import create_db_if_not_exists, get_spark_writer_jdbc_options, get_connector_options
 
 
 class AbstractWriter(ABC):
@@ -36,7 +36,7 @@ class AbstractWriter(ABC):
 class TableWriter(AbstractWriter, ABC):
 
     @abstractmethod
-    def _create_database_if_not_exists(self, db_name: str) -> None:
+    def _create_db_if_not_exists(self, db_name: str) -> None:
         pass
 
 
@@ -50,7 +50,7 @@ class HiveTableWriter(TableWriter):
         super().__init__(job_properties, dst_options, dst_type="hive")
         self._spark_session = spark_session
 
-    def _create_database_if_not_exists(self, db_name: str) -> None:
+    def _create_db_if_not_exists(self, db_name: str) -> None:
 
         spark_session = self._spark_session
         logger = self._logger
@@ -91,11 +91,11 @@ class HiveTableWriter(TableWriter):
         db_name = get(dst_type, dst_options.db_name)
         table_name = get(dst_type, dst_options.table_name)
         savemode: str = get(dst_type, dst_options.savemode)
-        create_database = get_or_else(dst_type, dst_options.create_database_if_not_exists, True)
+        create_database = get_or_else(dst_type, dst_options.create_db_if_not_exists, True)
 
         if create_database:
 
-            self._create_database_if_not_exists(db_name)
+            self._create_db_if_not_exists(db_name)
 
         existing_tables: List[str] = [tbl.name.lower() for tbl in spark_session.catalog.listTables(db_name)]
         if table_name.lower() in existing_tables:
@@ -155,9 +155,9 @@ class JDBCTableWriter(TableWriter):
                                              password_key=dst_options.pass_word,
                                              use_ssl_key=dst_options.use_ssl)
 
-    def _create_database_if_not_exists(self, db_name: str) -> None:
+    def _create_db_if_not_exists(self, db_name: str) -> None:
 
-        create_database_if_not_exists(self._mysql_cursor, db_name)
+        create_db_if_not_exists(self._mysql_cursor, db_name)
 
     def write(self, df: DataFrame) -> None:
 
@@ -171,10 +171,10 @@ class JDBCTableWriter(TableWriter):
         db_name = get(dst_type, dst_options.db_name)
         table_name = get(dst_type, dst_options.table_name)
         savemode = get(dst_type, dst_options.savemode)
-        create_database = get_or_else(dst_type, dst_options.create_database_if_not_exists, True)
+        create_database = get_or_else(dst_type, dst_options.create_db_if_not_exists, True)
         if create_database:
 
-            self._create_database_if_not_exists(db_name)
+            self._create_db_if_not_exists(db_name)
 
         full_table_name: str = f"{db_name}.{table_name}"
         logger.info(f"Starting to insert data into JDBC table '{full_table_name}' using savemode '{savemode}'")

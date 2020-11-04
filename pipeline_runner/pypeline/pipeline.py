@@ -10,8 +10,9 @@ from pyspark.sql import DataFrame, SparkSession
 
 from pypeline.abstract import AbstractPipelineElement, AbstractStep
 from pypeline.create.step import CreateStep
+from pypeline.read.step import ReadStep
 from pypeline.write.step import WriteStep
-from utils.jdbc import create_database_if_not_exists, get_connector_options, get_spark_writer_jdbc_options
+from utils.jdbc import create_db_if_not_exists, get_connector_options, get_spark_writer_jdbc_options
 from utils.spark import JDBCLogRecord, df_schema_tree_string
 
 
@@ -122,12 +123,61 @@ class Pipeline(AbstractPipelineElement):
 
         return everything_ok
 
+    def _run_read_steps(self) -> bool:
+
+        logger = self._logger
+        df_dict = self._df_dict
+        everything_ok = True
+
+        if self._any_read_step:
+
+            read_steps: List[dict] = self._pipeline_steps["readSteps"]
+            logger.info(f"Identified {self._read_steps_number} read step(s) within pipeline '{self.name}'")
+            enumerate_start_index = sum([self._create_steps_number]) + 1
+            for index, raw_read_step in enumerate(read_steps, start=enumerate_start_index):
+
+                step_name, step_description, step_type, dataframe_id = _extract_step_info(raw_read_step)
+                try:
+
+                    read_step = ReadStep.from_dict(raw_read_step)
+                    logger.info(f"Successfully initialized read step # {index} ('{read_step.name}')")
+                    if read_step.dataframe_id in list(df_dict.keys()):
+
+                        logger.warning(f"DataframeId '{read_step.dataframe_id}' already exists. Thus, related Dataframe will be overriden")
+
+                    df_dict[read_step.dataframe_id] = read_step.read(self._job_properties, self._spark_session)
+                    logger.info(f"Successfully executed read step # {index} ('{read_step.name}')")
+
+                except Exception as exception:
+
+                    logger.exception(f"Caught exception while executing read step # {index} ('{step_name}')", exception)
+                    jdbc_log_record = self._log_record(index, step_name, step_description, step_type, dataframe_id, exception)
+                    self._jdbc_log_records.append(jdbc_log_record)
+                    self._write_jdbc_log_records()
+                    everything_ok = False
+                    break
+
+                else:
+
+                    self._jdbc_log_records.append(self._log_record_from_step(index, read_step))
+
+                if everything_ok:
+
+                    logger.info(f"Successfully executed all of {self._read_steps_number} read step(s) within pipeline '{self.name}'")
+                    self._write_jdbc_log_records()
+
+        else:
+
+            logger.warning(f"No read steps defined within pipeline '{self.name}'")
+
+        return everything_ok
+
     def _run_write_steps(self) -> bool:
 
         logger = self._logger
         df_dict = self._df_dict
-
         everything_ok = True
+
         if self._any_write_step:
 
             write_steps: List[dict] = self._pipeline_steps["writeSteps"]
@@ -223,7 +273,7 @@ class Pipeline(AbstractPipelineElement):
 
         mysql_connection = mysql.connector.connect(**get_connector_options(job_properties))
         logger.info(f"Successfully estabilished JDBC connection with default coordinates")
-        create_database_if_not_exists(mysql_connection.cursor(), log_table_db_name)
+        create_db_if_not_exists(mysql_connection.cursor(), log_table_db_name)
 
         logger.info(f"Starting to insert data into table '{log_table_name_full}' using save_mode '{log_table_savemode}'")
 

@@ -52,9 +52,9 @@ class CsvReader(AbstractReader):
 
             return StructField(dict_["name"], DATA_TYPE_DICT[dict_["dataType"]], dict_["nullable"])
 
-        structType_from_json = StructType(list(map(to_structfield, json_dict["columns"])))
+        structtype_from_json = StructType(list(map(to_structfield, json_dict["columns"])))
         logger.info(f"Successfully retrieved StructType from file '{json_file_path}'")
-        return structType_from_json
+        return structtype_from_json
 
     def read(self) -> DataFrame:
 
