@@ -12,8 +12,8 @@ class ColumnExpression(Enum):
 
     CURRENT_DATE_OR_TIMESTAMP = r"^(current_date|current_timestamp)\(\)$", True
     DF_COL = r"^(col)\('(\w+)'\)$", True
-    LIT_COL = r"^(lit)\('([\w|\-|:]+)'\)$", True
-    SUBSTRING = r"^(substring)\(([\w|\(|'|,|\)|\s]+\)),\s(\d+),\s(\d+)\)$", False
+    LIT_COL = r"^(lit)\('(.+)'\)$", True
+    SUBSTRING = r"^(substring)\((.+\)),\s(\d+),\s(\d+)\)$", False
     TO_DATE_OR_TIMESTAMP = r"^(to_date|to_timestamp)\((.+\)), '(.+)'\)$", False
 
     def __init__(self, regex: str, is_static: bool):

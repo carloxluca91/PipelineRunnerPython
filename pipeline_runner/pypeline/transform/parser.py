@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 class ColumnExpressionParser:
 
     @staticmethod
-    def parse_static_expression(column_expression: str) -> Column:
+    def _parse_static_expression(column_expression: str) -> Column:
 
         matching_static_expressions = list(filter(lambda x: x.is_static and x.match(column_expression), ColumnExpression))
         matching_static_expression = matching_static_expressions[0]
@@ -49,7 +49,7 @@ class ColumnExpressionParser:
             if matching_column_expression.is_static:
 
                 logger.info(f"No further nested function detected")
-                return ColumnExpressionParser.parse_static_expression(column_expression)
+                return ColumnExpressionParser._parse_static_expression(column_expression)
 
             else:
 

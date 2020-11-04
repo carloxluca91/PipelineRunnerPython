@@ -125,7 +125,7 @@ class TestCreateColumn(AbstractTestCase):
             if column_type_lc not in ["timestamp", "date"]:
 
                 random_column = RandomColumn.from_dict(column)
-                self._logger.info(f"Analyzing column # {index} (name = '{random_column._name}', description = '{random_column._description}')")
+                self._logger.info(f"Analyzing column # {index} (name = '{random_column._step_name}', description = '{random_column._description}')")
                 if random_column._nullable:
                     self.assertIsNotNone(random_column._nullable_probability)
 
@@ -137,7 +137,7 @@ class TestCreateColumn(AbstractTestCase):
                 self.assertEqual(len(p), len(values))
                 self.assertEqual(sum(p), 1)
 
-                self._logger.info(f"Successfully analyzed column # {index} (type = '{random_column._name}', description = '{random_column._description}')")
+                self._logger.info(f"Successfully analyzed column # {index} (type = '{random_column._step_name}', description = '{random_column._description}')")
 
 
 if __name__ == '__main__':

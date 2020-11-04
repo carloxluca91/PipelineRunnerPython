@@ -57,7 +57,7 @@ class WithColumnTransformationOptions(TransformationOptions):
 
         super().__init__(transformation_type, input_source_id)
 
-        self._columns: List[WithColumnExpression] = [WithColumnExpression.from_dict(d) for d in columns]
+        self._columns = [WithColumnExpression.from_dict(d) for d in columns]
 
     @property
     def columns(self) -> List[WithColumnExpression]:
@@ -65,7 +65,7 @@ class WithColumnTransformationOptions(TransformationOptions):
         return self._columns
 
 
-class DropColumnTransformationOptions(TransformationOptions):
+class DropTransformationOptions(TransformationOptions):
 
     def __init__(self,
                  transformation_type: str,
@@ -100,7 +100,7 @@ class SelectTransformationOptions(TransformationOptions):
 
         super().__init__(transformation_type, input_source_id)
 
-        self._columns: List[SelectColumnExpression] = [SelectColumnExpression.from_dict(d) for d in columns]
+        self._columns = [SelectColumnExpression.from_dict(d) for d in columns]
 
     @property
     def columns(self):

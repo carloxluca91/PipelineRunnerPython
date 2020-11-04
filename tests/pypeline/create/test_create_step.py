@@ -25,7 +25,7 @@ class TestCreateStep(AbstractTestCase):
             create_step = CreateStep.from_dict(raw_create_step)
 
             self._logger.info(f"Successfully initialized create step # {index} "
-                              f"('{create_step._name}', "
+                              f"('{create_step._step_name}', "
                               f"description = '{create_step._description}')")
 
             pd_dataframe: pd.DataFrame = create_step.create()
@@ -33,7 +33,7 @@ class TestCreateStep(AbstractTestCase):
             self.assertEqual(pd_dataframe.shape[1], create_step.number_of_columns)
 
             expected_colum_order: List[str] = \
-                list(map(lambda x: x._name,
+                list(map(lambda x: x._step_name,
                          sorted(create_step._typed_columns,
                                 key=lambda x: x._column_number)))
 
