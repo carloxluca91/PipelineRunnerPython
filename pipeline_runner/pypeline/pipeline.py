@@ -11,6 +11,7 @@ from pyspark.sql import DataFrame, SparkSession
 from pypeline.abstract import AbstractPipelineElement, AbstractStep
 from pypeline.create.step import CreateStep
 from pypeline.read.step import ReadStep
+from pypeline.transform.step import TransformStep
 from pypeline.write.step import WriteStep
 from utils.jdbc import create_db_if_not_exists, get_connector_options, get_spark_writer_jdbc_options
 from utils.spark import JDBCLogRecord, df_schema_tree_string
@@ -70,9 +71,13 @@ class Pipeline(AbstractPipelineElement):
 
         if self._run_create_steps():
 
-            if self._run_write_steps():
+            if self._run_read_steps():
 
-                self._logger.info(f"Successfully executed the whole pipeline '{self.name}'")
+                if self._run_transform_steps():
+
+                    if self._run_write_steps():
+
+                        self._logger.info(f"Successfully executed the whole pipeline '{self.name}'")
 
     def _run_create_steps(self) -> bool:
 
@@ -164,6 +169,55 @@ class Pipeline(AbstractPipelineElement):
                 if everything_ok:
 
                     logger.info(f"Successfully executed all of {self._read_steps_number} read step(s) within pipeline '{self.name}'")
+                    self._write_jdbc_log_records()
+
+        else:
+
+            logger.warning(f"No read steps defined within pipeline '{self.name}'")
+
+        return everything_ok
+
+    def _run_transform_steps(self) -> bool:
+
+        logger = self._logger
+        df_dict = self._df_dict
+        everything_ok = True
+
+        if self._any_transform_step:
+
+            transform_steps: List[dict] = self._pipeline_steps["transformSteps"]
+            logger.info(f"Identified {self._transform_steps_number} transform step(s) within pipeline '{self.name}'")
+            enumerate_start_index = sum([self._create_steps_number, self._read_steps_number]) + 1
+            for index, raw_transform_step in enumerate(transform_steps, start=enumerate_start_index):
+
+                step_name, step_description, step_type, dataframe_id = _extract_step_info(raw_transform_step)
+                try:
+
+                    transform_step = TransformStep.from_dict(raw_transform_step)
+                    logger.info(f"Successfully initialized transform step # {index} ('{transform_step.name}')")
+                    if transform_step.dataframe_id in list(df_dict.keys()):
+
+                        logger.warning(f"DataframeId '{transform_step.dataframe_id}' already exists. Thus, related Dataframe will be overriden")
+
+                    df_dict[transform_step.dataframe_id] = transform_step.transform(df_dict)
+                    logger.info(f"Successfully executed transform step # {index} ('{transform_step.name}')")
+
+                except Exception as exception:
+
+                    logger.exception(f"Caught exception while executing transform step # {index} ('{step_name}')", exception)
+                    jdbc_log_record = self._log_record(index, step_name, step_description, step_type, dataframe_id, exception)
+                    self._jdbc_log_records.append(jdbc_log_record)
+                    self._write_jdbc_log_records()
+                    everything_ok = False
+                    break
+
+                else:
+
+                    self._jdbc_log_records.append(self._log_record_from_step(index, transform_step))
+
+                if everything_ok:
+
+                    logger.info(f"Successfully executed all of {self._transform_steps_number} transform step(s) within pipeline '{self.name}'")
                     self._write_jdbc_log_records()
 
         else:
