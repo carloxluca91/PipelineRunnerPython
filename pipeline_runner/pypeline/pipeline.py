@@ -1,7 +1,7 @@
 import logging
 from configparser import ConfigParser
 from datetime import date, datetime
-from typing import List, Dict, Tuple
+from typing import List, Dict
 
 import mysql
 from mysql import connector
@@ -17,15 +17,11 @@ from utils.jdbc import create_db_if_not_exists, get_connector_options, get_spark
 from utils.spark import JDBCLogRecord, df_schema_tree_string
 
 
-def _extract_step_info(step: dict) -> (str, str, str, str):
-
-    return step["name"], step["description"], step["stepType"], step["dataframeId"]
-
-
 class Pipeline(AbstractPipelineElement):
 
     def __init__(self,
                  job_properties: ConfigParser,
+                 spark_session: SparkSession,
                  name: str,
                  description: str,
                  pipeline_id: str,
@@ -38,25 +34,7 @@ class Pipeline(AbstractPipelineElement):
         self._job_properties = job_properties
         self._pipeline_id = pipeline_id
         self._pipeline_steps = pipeline_steps
-
-        def check_step_type(dict_: dict, key: str) -> Tuple[bool, int]:
-
-            return (False, 0) if key not in dict_ else (True, len(dict_[key]))
-
-        self._any_create_step, self._create_steps_number = check_step_type(self._pipeline_steps, "createSteps")
-        self._any_read_step, self._read_steps_number = check_step_type(self._pipeline_steps, "readSteps")
-        self._any_transform_step, self._transform_steps_number = check_step_type(self._pipeline_steps, "transformSteps")
-        self._any_write_step, self._write_steps_number = check_step_type(self._pipeline_steps, "writeSteps")
-
-        self._spark_session: SparkSession = SparkSession.builder\
-            .enableHiveSupport()\
-            .config("hive.exec.dynamic.partition", "true")\
-            .config("hive.exec.dynamic.partition.mode", "nonstrict")\
-            .getOrCreate()
-            
-        self._logger.info(f"Successfully got or created SparkSession for application '{self._spark_session.sparkContext.appName}'. "
-                          f"Application Id: '{self._spark_session.sparkContext.applicationId}', "
-                          f"UI url: {self._spark_session.sparkContext.uiWebUrl}")
+        self._spark_session = spark_session
 
         self._df_dict: Dict[str, DataFrame] = {}
         self._jdbc_log_records: List[JDBCLogRecord] = []
@@ -65,213 +43,82 @@ class Pipeline(AbstractPipelineElement):
     def pipeline_id(self):
         return self._pipeline_id
 
+    # noinspection PyBroadException
     def run(self):
 
-        self._logger.info(f"Kicking off pipeline '{self.name}'")
-
-        if self._run_create_steps():
-
-            if self._run_read_steps():
-
-                if self._run_transform_steps():
-
-                    if self._run_write_steps():
-
-                        self._logger.info(f"Successfully executed the whole pipeline '{self.name}'")
-
-    def _run_create_steps(self) -> bool:
-
         logger = self._logger
         df_dict = self._df_dict
 
+        def get_steps_for_key(dict_: dict, key: str) -> List[Dict]:
+
+            return [] if key not in dict_ else dict_[key]
+
+        create_steps = get_steps_for_key(self._pipeline_steps, "createSteps")
+        read_steps = get_steps_for_key(self._pipeline_steps, "readSteps")
+        transform_steps = get_steps_for_key(self._pipeline_steps, "transformSteps")
+        write_steps = get_steps_for_key(self._pipeline_steps, "writeSteps")
+
+        def extract_step_info(step: dict) -> (str, str, str, str):
+
+            return step["name"], step["description"], step["stepType"], step["dataframeId"]
+
         everything_ok = True
-        if self._any_create_step:
+        full_step_list = create_steps + read_steps + transform_steps + write_steps
+        for index, raw_step in enumerate(full_step_list, start=1):
 
-            create_steps: List[dict] = self._pipeline_steps["createSteps"]
-            logger.info(f"Identified {self._create_steps_number} create step(s) within pipeline {self.name}'")
+            step_name, step_description, step_type, dataframe_id = extract_step_info(raw_step)
+            try:
 
-            for index, raw_create_step in enumerate(create_steps, start=1):
+                if step_type == "create":
 
-                step_name, step_description, step_type, dataframe_id = _extract_step_info(raw_create_step)
-                try:
+                    typed_step = CreateStep.from_dict(raw_step)
+                    if typed_step.dataframe_id in df_dict:
 
-                    raw_create_step["spark_session"] = self._spark_session
-                    create_step = CreateStep.from_dict(raw_create_step)
-                    logger.info(f"Successfully initialized create step # {index} ('{create_step.name}')")
-                    if create_step.dataframe_id in list(df_dict.keys()):
+                        logger.warning(f"Dataframe key '{typed_step.dataframe_id}' already exists. Thus, related Dataframe will be overriden")
 
-                        logger.warning(f"DataframeId '{create_step.dataframe_id}' already exists. Thus, related Dataframe will be overriden")
+                    df_dict[typed_step.dataframe_id] = typed_step.create(self._spark_session)
 
-                    df_dict[create_step.dataframe_id] = create_step.create()
-                    logger.info(f"Updated df dict with dataframeId of create step # {index} ('{create_step.name}'), i.e. '{create_step.dataframe_id}'")
+                elif step_type == "read":
 
-                except Exception as exception:
+                    typed_step = ReadStep.from_dict(raw_step)
+                    if typed_step.dataframe_id in df_dict:
 
-                    logger.exception(f"Caught exception while running create step # {index} ('{step_name}')", exception)
-                    jdbc_log_record = self._log_record(index, step_name, step_description, step_type, dataframe_id, exception)
-                    self._jdbc_log_records.append(jdbc_log_record)
-                    self._write_jdbc_log_records()
-                    everything_ok = False
-                    break
+                        logger.warning(f"Dataframe key '{typed_step.dataframe_id}' already exists. Thus, related Dataframe will be overriden")
+
+                    df_dict[typed_step.dataframe_id] = typed_step.read(self._job_properties, self._spark_session)
+
+                elif step_type == "transform":
+
+                    typed_step = TransformStep.from_dict(raw_step)
+                    if typed_step.dataframe_id in df_dict:
+
+                        logger.warning(f"Dataframe key '{typed_step.dataframe_id}' already exists. Thus, related Dataframe will be overriden")
+
+                    df_dict[typed_step.dataframe_id] = typed_step.transform(df_dict)
 
                 else:
 
-                    self._jdbc_log_records.append(self._log_record_from_step(index, create_step))
+                    typed_step = WriteStep.from_dict(raw_step)
+                    typed_step.write(df_dict, self._job_properties)
 
-            if everything_ok:
+            except Exception as e:
 
-                logger.info(f"Successfully executed all of {self._create_steps_number} create step(s) within pipeline '{self.name}'")
-
-        else:
-
-            logger.warning(f"No create steps defined within pipeline '{self.name}'")
-
-        return everything_ok
-
-    def _run_read_steps(self) -> bool:
-
-        logger = self._logger
-        df_dict = self._df_dict
-        everything_ok = True
-
-        if self._any_read_step:
-
-            read_steps: List[dict] = self._pipeline_steps["readSteps"]
-            logger.info(f"Identified {self._read_steps_number} read step(s) within pipeline '{self.name}'")
-            enumerate_start_index = sum([self._create_steps_number]) + 1
-            for index, raw_read_step in enumerate(read_steps, start=enumerate_start_index):
-
-                step_name, step_description, step_type, dataframe_id = _extract_step_info(raw_read_step)
-                try:
-
-                    read_step = ReadStep.from_dict(raw_read_step)
-                    logger.info(f"Successfully initialized read step # {index} ('{read_step.name}')")
-                    if read_step.dataframe_id in list(df_dict.keys()):
-
-                        logger.warning(f"DataframeId '{read_step.dataframe_id}' already exists. Thus, related Dataframe will be overriden")
-
-                    df_dict[read_step.dataframe_id] = read_step.read(self._job_properties, self._spark_session)
-                    logger.info(f"Successfully executed read step # {index} ('{read_step.name}')")
-
-                except Exception as exception:
-
-                    logger.exception(f"Caught exception while executing read step # {index} ('{step_name}')", exception)
-                    jdbc_log_record = self._log_record(index, step_name, step_description, step_type, dataframe_id, exception)
-                    self._jdbc_log_records.append(jdbc_log_record)
-                    self._write_jdbc_log_records()
-                    everything_ok = False
-                    break
-
-                else:
-
-                    self._jdbc_log_records.append(self._log_record_from_step(index, read_step))
-
-                if everything_ok:
-
-                    logger.info(f"Successfully executed all of {self._read_steps_number} read step(s) within pipeline '{self.name}'")
-                    self._write_jdbc_log_records()
-
-        else:
-
-            logger.warning(f"No read steps defined within pipeline '{self.name}'")
-
-        return everything_ok
-
-    def _run_transform_steps(self) -> bool:
-
-        logger = self._logger
-        df_dict = self._df_dict
-        everything_ok = True
-
-        if self._any_transform_step:
-
-            transform_steps: List[dict] = self._pipeline_steps["transformSteps"]
-            logger.info(f"Identified {self._transform_steps_number} transform step(s) within pipeline '{self.name}'")
-            enumerate_start_index = sum([self._create_steps_number, self._read_steps_number]) + 1
-            for index, raw_transform_step in enumerate(transform_steps, start=enumerate_start_index):
-
-                step_name, step_description, step_type, dataframe_id = _extract_step_info(raw_transform_step)
-                try:
-
-                    transform_step = TransformStep.from_dict(raw_transform_step)
-                    logger.info(f"Successfully initialized transform step # {index} ('{transform_step.name}')")
-                    if transform_step.dataframe_id in list(df_dict.keys()):
-
-                        logger.warning(f"DataframeId '{transform_step.dataframe_id}' already exists. Thus, related Dataframe will be overriden")
-
-                    df_dict[transform_step.dataframe_id] = transform_step.transform(df_dict)
-                    logger.info(f"Successfully executed transform step # {index} ('{transform_step.name}')")
-
-                except Exception as exception:
-
-                    logger.exception(f"Caught exception while executing transform step # {index} ('{step_name}')", exception)
-                    jdbc_log_record = self._log_record(index, step_name, step_description, step_type, dataframe_id, exception)
-                    self._jdbc_log_records.append(jdbc_log_record)
-                    self._write_jdbc_log_records()
-                    everything_ok = False
-                    break
-
-                else:
-
-                    self._jdbc_log_records.append(self._log_record_from_step(index, transform_step))
-
-                if everything_ok:
-
-                    logger.info(f"Successfully executed all of {self._transform_steps_number} transform step(s) within pipeline '{self.name}'")
-                    self._write_jdbc_log_records()
-
-        else:
-
-            logger.warning(f"No read steps defined within pipeline '{self.name}'")
-
-        return everything_ok
-
-    def _run_write_steps(self) -> bool:
-
-        logger = self._logger
-        df_dict = self._df_dict
-        everything_ok = True
-
-        if self._any_write_step:
-
-            write_steps: List[dict] = self._pipeline_steps["writeSteps"]
-            logger.info(f"Identified {self._write_steps_number} write step(s) within pipeline '{self.name}'")
-            enumerate_start_index = sum([self._create_steps_number, self._read_steps_number, self._transform_steps_number]) + 1
-            for index, raw_write_step in enumerate(write_steps, start=enumerate_start_index):
-
-                step_name, step_description, step_type, dataframe_id = _extract_step_info(raw_write_step)
-
-                try:
-
-                    raw_write_step["spark_session"] = self._spark_session
-                    write_step = WriteStep.from_dict(raw_write_step)
-                    logger.info(f"Successfully initialized write step # {index} ('{write_step.name}')")
-                    write_step.write(df_dict, self._job_properties)
-                    logger.info(f"Successfully executed write step # {index} ('{write_step.name}')")
-
-                except Exception as exception:
-
-                    logger.exception(f"Caught exception while executing write step # {index} ('{step_name}')", exception)
-                    jdbc_log_record = self._log_record(index, step_name, step_description, step_type, dataframe_id, exception)
-                    self._jdbc_log_records.append(jdbc_log_record)
-                    self._write_jdbc_log_records()
-                    everything_ok = False
-                    break
-
-                else:
-
-                    self._jdbc_log_records.append(self._log_record_from_step(index, write_step))
-
-            if everything_ok:
-
-                logger.info(f"Successfully executed all of {self._write_steps_number} write step(s) within pipeline '{self.name}'")
+                logger.exception(f"Caught exception while running step # {index} of type '{step_type}' and name '{step_name}", e)
+                jdbc_log_record = self._log_record(index, step_name, step_description, step_type, dataframe_id, e)
+                self._jdbc_log_records.append(jdbc_log_record)
                 self._write_jdbc_log_records()
+                everything_ok = False
+                break
 
-        else:
+            else:
 
-            self._logger.warning(f"No write step has been defined. Thus, no data will be stored")
+                self._jdbc_log_records.append(self._log_record_from_step(index, typed_step))
+                logger.info(f"Successfully executed step # {index} of type '{step_type}' and name '{step_name}'")
 
-        return everything_ok
+        if everything_ok:
+
+            self._write_jdbc_log_records()
+            self._logger.info(f"Successfully executed whole pipeline '{self.name}'")
 
     def _log_record(self,
                     step_index: int,
@@ -302,9 +149,9 @@ class Pipeline(AbstractPipelineElement):
                              dataframe_id,
                              datetime.now(),
                              datetime.now().date(),
-                             0 if exception is None else -1,
-                             "OK" if exception is None else "KO",
-                             None if exception is None else repr(exception))
+                             -1 if exception else 0,
+                             "KO" if exception else "OK",
+                             repr(exception) if exception else None)
 
     def _log_record_from_step(self, step_index: int, step: AbstractStep, exception: Exception = None) -> JDBCLogRecord:
 

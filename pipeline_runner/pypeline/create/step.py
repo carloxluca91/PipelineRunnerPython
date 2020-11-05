@@ -31,15 +31,13 @@ class CreateStep(AbstractStep):
                  step_type: str,
                  dataframe_id: str,
                  number_of_records: int,
-                 dataframe_columns: List[dict],
-                 spark_session: SparkSession):
+                 dataframe_columns: List[dict]):
 
         super().__init__(name, description, step_type, dataframe_id)
 
         self._logger = logging.getLogger(__name__)
         self._number_of_records = number_of_records
         self._typed_columns: List[TypedColumn] = self._parse_columns_specifications(dataframe_columns)
-        self._spark_session = spark_session
 
     @property
     def number_of_records(self) -> int:
@@ -74,7 +72,7 @@ class CreateStep(AbstractStep):
 
         return list_of_typed_columns
 
-    def create(self) -> DataFrame:
+    def create(self, spark_session: SparkSession) -> DataFrame:
 
         logger = self._logger
 
@@ -96,7 +94,7 @@ class CreateStep(AbstractStep):
 
         logger.info("Successfully turned the populated columns into a pd.DataFrame")
 
-        spark_dataframe = self._spark_session.createDataFrame(pd_dataframe)
+        spark_dataframe = spark_session.createDataFrame(pd_dataframe)
 
         logger.info(f"Successfully created pyspark DataFrame create step '{self.name}'. Schema " + df_schema_tree_string(spark_dataframe))
         return spark_dataframe
