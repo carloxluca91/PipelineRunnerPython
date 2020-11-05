@@ -1,7 +1,7 @@
 from typing import List, Union
 
 from pypeline.abstract import AbstractJsonElement
-from utils.time import JAVA_PYTHON_DT_FORMAT_CONVERTER, JAVA_PYTHON_TS_FORMAT_CONVERTER
+from utils.time import PYTHON_DT_FORMAT_CONVERTER, PYTHON_TS_FORMAT_CONVERTER
 
 
 class DateOrTimestampMetadata(AbstractJsonElement):
@@ -31,15 +31,15 @@ class DateOrTimestampMetadata(AbstractJsonElement):
                 else to_datetime(upper_bound, DEFAULT_TIMESTAMP_FORMAT)
 
         self.java_output_format = output_format
-        self.python_output_format = JAVA_PYTHON_DT_FORMAT_CONVERTER[output_format] if is_date \
-            else JAVA_PYTHON_TS_FORMAT_CONVERTER[output_format]
+        self.python_output_format = PYTHON_DT_FORMAT_CONVERTER[output_format] if is_date \
+            else PYTHON_TS_FORMAT_CONVERTER[output_format]
 
         self.corrupt_flag = corrupt_flag
         self.corrupt_probability = corrupt_probability
         self.java_corrupt_format = corrupt_format
         self.python_corrupt_format = corrupt_format if corrupt_format is None \
-            else JAVA_PYTHON_DT_FORMAT_CONVERTER[corrupt_format] if is_date \
-            else JAVA_PYTHON_TS_FORMAT_CONVERTER[corrupt_format]
+            else PYTHON_DT_FORMAT_CONVERTER[corrupt_format] if is_date \
+            else PYTHON_TS_FORMAT_CONVERTER[corrupt_format]
 
 
 class DateColumnMetadata(DateOrTimestampMetadata):

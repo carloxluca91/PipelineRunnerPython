@@ -5,6 +5,7 @@ from pyspark.sql import DataFrame
 
 from pypeline.abstract import AbstractStep
 from pypeline.transform.transformation import WithColumnTransformation, DropTransformation, SelectTransformation
+from utils.spark import df_schema_tree_string
 
 T = Union[Type[WithColumnTransformation],
           Type[DropTransformation],
@@ -49,8 +50,9 @@ class TransformStep(AbstractStep):
 
         transformation = TRANSFORM_DICT[self.transformation_type](self.name, self.transformation_options)
         logger.info(f"Successfully initialized transformation operation for transformStep '{self.name}'")
-
-        input_source_id = transformation.transformation_options.input_source_id
         df: DataFrame = transformation.transform(df_dict)
-        logger.info(f"Successfully transformed input dataframe with id '{input_source_id}' according to transformStep '{self.name}'")
+        input_source_id = transformation.transformation_options.input_source_id
+        logger.info(f"Successfully transformed input dataframe '{input_source_id}' to dataframe '{self.dataframe_id}'. "
+                    f"Dataframe schema {df_schema_tree_string(df)}")
+        logger.info(f"Successfully executed transform step '{self.name}'")
         return df

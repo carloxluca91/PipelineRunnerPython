@@ -40,10 +40,11 @@ class WriteStep(AbstractStep):
 
     def write(self, df_dict: Dict[str, DataFrame], job_properties: configparser.ConfigParser, spark_session: SparkSession) -> None:
 
+        logger = self._logger
         dst_options = self._dst_options
         df = df_dict[self.dataframe_id]
 
-        self._logger.info(f"Dataframe to be written during write step '{self.name}' has schema:\n" + df_schema_tree_string(df))
+        logger.info(f"Dataframe to be written ('{self.dataframe_id}') schema {df_schema_tree_string(df)}")
         if isinstance(dst_options, HiveTableDstOptions):
 
             HiveTableWriter(job_properties, dst_options, spark_session).write(df)
@@ -51,3 +52,5 @@ class WriteStep(AbstractStep):
         elif isinstance(dst_options, JDBCTableDstOptions):
 
             JDBCTableWriter(job_properties, dst_options).write(df)
+
+        logger.info(f"Successfully executed write step '{self.name}'")

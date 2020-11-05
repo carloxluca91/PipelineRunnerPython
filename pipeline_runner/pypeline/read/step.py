@@ -28,8 +28,7 @@ class ReadStep(AbstractStep):
 
         self._logger = logging.getLogger(__name__)
         self._src_type = src_options["srcType"]
-        self._dst_options = SRC_OPTIONS_TYPE[self._src_type].from_dict(src_options)
-        self._src_options = src_options
+        self._src_options = SRC_OPTIONS_TYPE[self._src_type].from_dict(src_options)
 
     @property
     def src_options(self):
@@ -40,14 +39,14 @@ class ReadStep(AbstractStep):
         logger = self._logger
         src_options = self._src_options
 
-        df: DataFrame
         if isinstance(src_options, CsvSrcOptions):
 
-            df = CsvReader(job_properties, spark_session, src_options).read()
+            df: DataFrame = CsvReader(job_properties, spark_session, src_options).read()
 
-        elif isinstance(src_options, HiveTableSrcOptions):
+        else:
 
-            df = HiveTableReader(job_properties, spark_session, src_options).read()
+            df: DataFrame = HiveTableReader(job_properties, spark_session, HiveTableSrcOptions.from_dict(src_options)).read()
 
-        logger.info(f"Dataset read during read step '{self.name}' has schema " + df_schema_tree_string(df))
+        logger.info(f"Successfully read dataframe '{self.dataframe_id}'. Schema {df_schema_tree_string(df)}")
+        logger.info(f"Successfully executed read step '{self.name}'")
         return df

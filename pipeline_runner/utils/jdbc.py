@@ -2,13 +2,11 @@ import logging
 from configparser import ConfigParser
 from typing import List, Dict
 
-from mysql.connector.cursor_cext import CMySQLCursor
 from pyspark.sql import DataFrame
 
 logger = logging.getLogger(__name__)
 
-
-def create_db_if_not_exists(mysql_cursor: CMySQLCursor, db_name: str):
+def create_db_if_not_exists(mysql_cursor, db_name: str):
 
     logger.info(f"Checking existence of JDBC database '{db_name}'")
     mysql_cursor.execute("SHOW DATABASES")

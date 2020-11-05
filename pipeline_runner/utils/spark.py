@@ -37,7 +37,6 @@ class JDBCLogRecord:
                  application_start_date: datetime.date,
                  pipeline_name: str,
                  pipeline_description: str,
-                 pipeline_id: str,
                  step_index: int,
                  step_name: str,
                  step_description: str,
@@ -55,7 +54,6 @@ class JDBCLogRecord:
         self.application_start_date = application_start_date
         self.pipeline_name = pipeline_name
         self.pipeline_description = pipeline_description
-        self.pipeline_id = pipeline_id
         self.step_index = step_index
         self.step_name = step_name
         self.step_description = step_description
@@ -76,7 +74,6 @@ class JDBCLogRecord:
                            StructField("application_start_date", DateType(), True),
                            StructField("pipeline_name", StringType(), True),
                            StructField("pipeline_description", StringType(), True),
-                           StructField("pipeline_id", StringType(), True),
                            StructField("step_index", IntegerType(), True),
                            StructField("step_name", StringType(), True),
                            StructField("step_description", StringType(), True),

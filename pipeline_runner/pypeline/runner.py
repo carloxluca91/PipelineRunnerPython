@@ -7,23 +7,33 @@ from pyspark.sql import functions, SparkSession
 
 from pypeline.pipeline import Pipeline
 
-logger = logging.getLogger(__name__)
-
 
 class PipelineRunner:
 
-    @staticmethod
-    def run_pipeline(pipeline_name: str, job_properties: ConfigParser):
+    def __init__(self,
+                 pipeline_name: str,
+                 job_properties: ConfigParser):
 
-        spark_session: SparkSession = SparkSession.builder \
+        self._logger = logging.getLogger(__name__)
+        self._pipeline_name = pipeline_name
+        self._job_properties = job_properties
+
+        self._spark_session: SparkSession = SparkSession.builder \
             .enableHiveSupport() \
             .config("hive.exec.dynamic.partition", "true") \
             .config("hive.exec.dynamic.partition.mode", "nonstrict") \
             .getOrCreate()
 
-        logger.info(f"Successfully got or created SparkSession for application '{spark_session.sparkContext.appName}'. "
-                    f"Application Id: '{spark_session.sparkContext.applicationId}', "
-                    f"UI url: {spark_session.sparkContext.uiWebUrl}")
+        self._logger.info(f"Successfully got or created SparkSession for application '{self._spark_session.sparkContext.appName}'. "
+                          f"Application Id: '{self._spark_session.sparkContext.applicationId}', "
+                          f"UI url: {self._spark_session.sparkContext.uiWebUrl}")
+
+    def run_pipeline(self):
+
+        logger = self._logger
+        pipeline_name = self._pipeline_name
+        job_properties = self._job_properties
+        spark_session = self._spark_session
 
         default_db_name = job_properties["hive"]["hive.default.dbName"].lower()
         pypeline_info_table_name = job_properties["hive"]["hive.default.pipelineInfoTable"].lower()
@@ -36,14 +46,14 @@ class PipelineRunner:
                 .select("file_name")\
                 .collect()[0]
 
-            pipeline_file_dir_path = job_properties["hdfs"]["pypeline.json.dir.path"]
+            pipeline_file_dir_path = job_properties["hdfs"]["pipeline.json.dir.path"]
             pipeline_file_path = f"{pipeline_file_dir_path}\\{pipeline_file_name}"
 
         else:
 
             # OTHERWISE, IT MEANS THIS IS THE FIRST TIME THE APPLICATION IS RUN. THUS, RUN PIPELINE FOR INITIAL LOAD
-            pipeline_file_path = job_properties["hdfs"]["pypeline.loadTableInfo.json.file.path"]
-            logger.warning(f"As default Hive db ('{default_db_name}') does not exist, provided pipeline won't be run. Running initial load instead")
+            pipeline_file_path = job_properties["hdfs"]["pipeline.initialLoad.json.file.path"]
+            logger.warning(f"As default Hive db ('{default_db_name}') does not exist, provided pipeline won't be run. Running 'INITIAL_LOAD' instead")
 
         with open(pipeline_file_path, mode="r", encoding="UTF-8") as f:
 

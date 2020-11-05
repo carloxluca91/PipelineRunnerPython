@@ -92,9 +92,10 @@ class CreateStep(AbstractStep):
 
         pd_dataframe = pd.DataFrame.from_dict(dict_of_series).astype(dtype=dict_of_dtypes)
 
-        logger.info("Successfully turned the populated columns into a pd.DataFrame")
+        logger.info("Successfully created pandas.DataFrame")
 
         spark_dataframe = spark_session.createDataFrame(pd_dataframe)
 
-        logger.info(f"Successfully created pyspark DataFrame create step '{self.name}'. Schema " + df_schema_tree_string(spark_dataframe))
+        logger.info(f"Successfully created pyspark DataFrame '{self.dataframe_id}'. Schema {df_schema_tree_string(spark_dataframe)}")
+        logger.info(f"Successfully executed create step '{self.name}'")
         return spark_dataframe

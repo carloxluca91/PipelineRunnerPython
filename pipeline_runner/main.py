@@ -48,7 +48,7 @@ if __name__ == '__main__':
             job_properties.read_file(f)
             logger.info(f"Successfully loaded job properties dict. Job properties sections: {job_properties.sections()}")
 
-        PipelineRunner.run_pipeline(pipeline_name, job_properties)
+        PipelineRunner(pipeline_name, job_properties).run_pipeline()
 
     else:
 

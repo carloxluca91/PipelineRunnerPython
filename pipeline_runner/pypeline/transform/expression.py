@@ -31,7 +31,7 @@ class ColumnExpression(Enum):
 
         return self._is_static
 
-    def match(self, column_expression: str) -> re.Match:
+    def match(self, column_expression: str):
 
         return re.match(self.regex, column_expression)
 

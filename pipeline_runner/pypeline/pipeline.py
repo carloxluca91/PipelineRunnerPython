@@ -24,7 +24,6 @@ class Pipeline(AbstractPipelineElement):
                  spark_session: SparkSession,
                  name: str,
                  description: str,
-                 pipeline_id: str,
                  pipeline_steps: dict):
 
         super().__init__(name, description)
@@ -32,16 +31,11 @@ class Pipeline(AbstractPipelineElement):
         self._logger = logging.getLogger(__name__)
 
         self._job_properties = job_properties
-        self._pipeline_id = pipeline_id
         self._pipeline_steps = pipeline_steps
         self._spark_session = spark_session
 
         self._df_dict: Dict[str, DataFrame] = {}
         self._jdbc_log_records: List[JDBCLogRecord] = []
-
-    @property
-    def pipeline_id(self):
-        return self._pipeline_id
 
     # noinspection PyBroadException
     def run(self):
@@ -72,29 +66,20 @@ class Pipeline(AbstractPipelineElement):
                 if step_type == "create":
 
                     typed_step = CreateStep.from_dict(raw_step)
-                    if typed_step.dataframe_id in df_dict:
-
-                        logger.warning(f"Dataframe key '{typed_step.dataframe_id}' already exists. Thus, related Dataframe will be overriden")
-
-                    df_dict[typed_step.dataframe_id] = typed_step.create(self._spark_session)
+                    created_df: DataFrame = typed_step.create(self._spark_session)
+                    self._update_df_dict(typed_step.dataframe_id, created_df)
 
                 elif step_type == "read":
 
                     typed_step = ReadStep.from_dict(raw_step)
-                    if typed_step.dataframe_id in df_dict:
-
-                        logger.warning(f"Dataframe key '{typed_step.dataframe_id}' already exists. Thus, related Dataframe will be overriden")
-
-                    df_dict[typed_step.dataframe_id] = typed_step.read(self._job_properties, self._spark_session)
+                    read_df: DataFrame = typed_step.read(self._job_properties, self._spark_session)
+                    self._update_df_dict(typed_step.dataframe_id, read_df)
 
                 elif step_type == "transform":
 
                     typed_step = TransformStep.from_dict(raw_step)
-                    if typed_step.dataframe_id in df_dict:
-
-                        logger.warning(f"Dataframe key '{typed_step.dataframe_id}' already exists. Thus, related Dataframe will be overriden")
-
-                    df_dict[typed_step.dataframe_id] = typed_step.transform(df_dict)
+                    transformed_df: DataFrame = typed_step.transform(df_dict)
+                    self._update_df_dict(typed_step.dataframe_id, transformed_df)
 
                 else:
 
@@ -120,6 +105,18 @@ class Pipeline(AbstractPipelineElement):
             self._write_jdbc_log_records()
             self._logger.info(f"Successfully executed whole pipeline '{self.name}'")
 
+    def _update_df_dict(self, dataframe_id: str, df: DataFrame):
+
+        logger = self._logger
+        df_dict = self._df_dict
+
+        if dataframe_id in df_dict:
+
+            logger.warning(f"Dataframe '{dataframe_id}' already exists. "
+                           f"It will be overriden by a DataFrame with schema {df_schema_tree_string(df)}")
+
+        df_dict[dataframe_id] = df
+
     def _log_record(self,
                     step_index: int,
                     step_name: str,
@@ -141,7 +138,6 @@ class Pipeline(AbstractPipelineElement):
                              application_start_date,
                              self.name,
                              self.description,
-                             self.pipeline_id,
                              step_index,
                              step_name,
                              step_description,
@@ -166,9 +162,9 @@ class Pipeline(AbstractPipelineElement):
         logging_dataframe = self._spark_session.createDataFrame(jdbc_log_records, JDBCLogRecord.as_structype())
 
         logger.info(f"Successfully turned list of {len(jdbc_log_records)} {JDBCLogRecord.__name__}(s) into a {DataFrame.__name__}")
-        logger.info(f"DataFrame to be written has schema:\n{df_schema_tree_string(logging_dataframe)}")
+        logger.info(f"Logging dataFrame schema {df_schema_tree_string(logging_dataframe)}")
 
-        log_table_db_name = job_properties["jdbc"]["jdbc.default.database"]
+        log_table_db_name = job_properties["jdbc"]["jdbc.default.dbName"]
         log_table_name_full = job_properties["jdbc"]["jdbc.default.logTable.full"]
         log_table_savemode = job_properties["jdbc"]["jdbc.default.logTable.saveMode"]
 
