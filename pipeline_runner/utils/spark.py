@@ -1,33 +1,41 @@
 import datetime
-from typing import List
+from typing import List, Dict
 
 from pyspark.sql import DataFrame
 from pyspark.sql.types import StructType, StructField
-from pyspark.sql.types import StringType, IntegerType, DoubleType, LongType, DateType, TimestampType
-
-DATA_TYPE_DICT = {
-
-    "string": StringType(),
-    "int": IntegerType(),
-    "double": DoubleType(),
-    "long": LongType(),
-    "date": DateType(),
-    "timestamp": TimestampType()
-}
+from pyspark.sql.types import DataType, StringType, IntegerType, DoubleType, LongType, DateType, TimestampType
 
 
-def df_schema_tree_string(df: DataFrame) -> str:
+class SparkUtils:
 
-    schema_json: dict = df.schema.jsonValue()
-    schema_str_list: List[str] = list(map(lambda x:
-                                          f" |-- {x['name']}: {x['type']} (nullable: {str(x['nullable']).lower()})",
-                                          schema_json["fields"]))
-    schema_str_list.insert(0, "\n\nroot")
+    _SPARK_TYPE_MAPPING: Dict[str, DataType] = {
 
-    return "\n".join(schema_str_list) + "\n"
+        "string": StringType(),
+        "int": IntegerType(),
+        "double": DoubleType(),
+        "long": LongType(),
+        "date": DateType(),
+        "timestamp": TimestampType()
+    }
+
+    @classmethod
+    def df_schema_tree_string(cls, df: DataFrame) -> str:
+
+        schema_json: dict = df.schema.jsonValue()
+        schema_str_list: List[str] = list(map(lambda x:
+                                              f" |-- {x['name']}: {x['type']} (nullable: {str(x['nullable']).lower()})",
+                                              schema_json["fields"]))
+        schema_str_list.insert(0, "\n\nroot")
+
+        return "\n".join(schema_str_list) + "\n"
+
+    @classmethod
+    def get_spark_datatype(cls, type_: str) -> DataType:
+
+        return cls._SPARK_TYPE_MAPPING[type_]
 
 
-class JDBCLogRecord:
+class LogRecord:
 
     def __init__(self,
                  application_id: str,

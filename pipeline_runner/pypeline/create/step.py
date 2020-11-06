@@ -6,9 +6,9 @@ from pyspark.sql import DataFrame, SparkSession
 
 from pypeline.abstract import AbstractStep
 from pypeline.create.column import TypedColumn, DateOrTimestampColumn, RandomColumn
-from utils.spark import df_schema_tree_string
+from utils.spark import SparkUtils
 
-DATAFRAME_COLUMN_SWICTH = {
+_DATAFRAME_COLUMN_SWICTH = {
 
     "timestamp": DateOrTimestampColumn,
     "date": DateOrTimestampColumn,
@@ -16,7 +16,7 @@ DATAFRAME_COLUMN_SWICTH = {
     "int": RandomColumn
 }
 
-PD_DATAFRAME_DTYPE = {
+_PD_DATAFRAME_DTYPE = {
 
     "int": "int",
     "float": "float",
@@ -62,7 +62,7 @@ class CreateStep(AbstractStep):
             column_name: str = dataframe_column["name"]
             column_description: str = dataframe_column["description"]
 
-            typed_column: TypedColumn = DATAFRAME_COLUMN_SWICTH[column_type_lc].from_dict(dataframe_column)
+            typed_column: TypedColumn = _DATAFRAME_COLUMN_SWICTH[column_type_lc].from_dict(dataframe_column)
             logger.info(f"Successfully parsed metadata for column # {index} (columnName = '{column_name}', description = '{column_description}')")
             list_of_typed_columns.append(typed_column)
 
@@ -85,7 +85,7 @@ class CreateStep(AbstractStep):
 
             series = pd.Series(data=typed_column.create(self._number_of_records), name=typed_column._name)
             dict_of_series[typed_column.name] = series
-            dict_of_dtypes[typed_column.name] = PD_DATAFRAME_DTYPE.get(typed_column.column_type, "str")
+            dict_of_dtypes[typed_column.name] = _PD_DATAFRAME_DTYPE.get(typed_column.column_type, "str")
             logger.info(f"Successfully populated column # {index} (name = '{typed_column.name}', description = '{typed_column.description}'")
 
         logger.info(f"Successfully populated each of the {len(sorted_typed_columns)} dataframe column(s)")
@@ -96,6 +96,6 @@ class CreateStep(AbstractStep):
 
         spark_dataframe = spark_session.createDataFrame(pd_dataframe)
 
-        logger.info(f"Successfully created pyspark DataFrame '{self.dataframe_id}'. Schema {df_schema_tree_string(spark_dataframe)}")
+        logger.info(f"Successfully created pyspark DataFrame '{self.dataframe_id}'. Schema {SparkUtils.df_schema_tree_string(spark_dataframe)}")
         logger.info(f"Successfully executed create step '{self.name}'")
         return spark_dataframe

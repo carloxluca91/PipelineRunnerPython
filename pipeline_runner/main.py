@@ -9,7 +9,8 @@ if __name__ == '__main__':
 
     from pypeline.runner import PipelineRunner
 
-    # LOGGING CONFIGURATION
+    # Logging configuration
+
     with open("pipeline_runner/logging.ini", "r", encoding="UTF-8") as f:
         config.fileConfig(f)
 
@@ -17,7 +18,8 @@ if __name__ == '__main__':
     logger.info("Successfully loaded logging configuration")
     parser = argparse.ArgumentParser()
 
-    # OPTION -j, --json
+    # Option -n, --name (Pipeline Name)
+
     parser.add_argument("-n",
                         "--name",
                         type=str,
@@ -26,7 +28,8 @@ if __name__ == '__main__':
                         help="Name of pipeline to be run",
                         required=True)
 
-    # OPTION -i, --ini
+    # Option -i, --ini (Spark Job .ini File)
+
     parser.add_argument("-i",
                         "--ini",
                         type=str,
@@ -46,10 +49,11 @@ if __name__ == '__main__':
         with open(ini_file_path, mode="r", encoding="UTF-8") as f:
 
             job_properties.read_file(f)
-            logger.info(f"Successfully loaded job properties dict. Job properties sections: {job_properties.sections()}")
+            job_properties_sections = ", ".join(map(lambda x: f"'{x}'", job_properties.sections()))
+            logger.info(f"Successfully loaded job properties dict. Job properties sections: {job_properties_sections}")
 
         PipelineRunner(pipeline_name, job_properties).run_pipeline()
 
     else:
 
-        logger.warning(f"Spark application .ini file does not exist. Thus, nothing will be triggered")
+        logger.warning(f"Spark application .ini file '{ini_file_path}' does not exist. Thus, nothing will be triggered")

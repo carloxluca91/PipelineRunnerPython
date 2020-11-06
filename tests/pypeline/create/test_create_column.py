@@ -1,6 +1,10 @@
 import unittest
+
+from datetime import date, datetime
 from typing import List
 
+from pipeline_runner.utils.time import TimeUtils
+from pipeline_runner.pypeline.create.column import DateOrTimestampColumn
 from tests.abstract import AbstractTestCase
 
 
@@ -18,15 +22,7 @@ class TestCreateColumn(AbstractTestCase):
 
     def test_timestamp_column(self):
 
-        from datetime import date, datetime
-
-        from pipeline_runner.pypeline.create.column import DateOrTimestampColumn
-        from pipeline_runner.utils.time import to_date, \
-            to_datetime, \
-            DEFAULT_TIMESTAMP_FORMAT, \
-            DEFAULT_DATE_FORMAT
-
-        # FILTER IN ORDER TO KEEP ONLY 'date' OR 'timestamp' COLUMN TYPES
+        # Filter in order to keep only 'date' or 'timestamp' column types
         dt_or_ts_columns: List[dict] = list(filter(lambda x: x["column_type"].lower() in ["date", "timestamp"], self.column_list))
         for index, dict_column in enumerate(dt_or_ts_columns):
 
@@ -40,10 +36,9 @@ class TestCreateColumn(AbstractTestCase):
 
             # CHECK THAT upper_bound COINCIDES WITH CURRENT DATE IF None WAS PROVIDED
             upper_bound_str: str = dict_column["metadata"]["upper_bound"]
-
             expected_upper_bound_dt: date = datetime.now().date() if upper_bound_str is None \
-                else to_date(upper_bound_str, DEFAULT_DATE_FORMAT) if is_date \
-                else to_datetime(upper_bound_str, DEFAULT_TIMESTAMP_FORMAT).date()
+                else TimeUtils.to_date(upper_bound_str) if is_date \
+                else TimeUtils.to_datetime(upper_bound_str).date()
 
             actual_upper_bound_dt: date = dt_or_ts_column.metadata.upper_bound_dtt if is_date \
                 else dt_or_ts_column.metadata.upper_bound_dtt.date()

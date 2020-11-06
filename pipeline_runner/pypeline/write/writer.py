@@ -8,7 +8,7 @@ from mysql import connector
 from pyspark.sql import DataFrame, SparkSession
 
 from pypeline.write.option import HiveTableDstOptions, JDBCTableDstOptions
-from utils.jdbc import create_db_if_not_exists, get_spark_writer_jdbc_options, get_connector_options
+from utils.jdbc import JDBCUtils
 
 
 class AbstractWriter(ABC):
@@ -139,7 +139,7 @@ class JDBCTableWriter(TableWriter):
 
         super().__init__(job_properties, dst_options, dst_type)
 
-        self._mysql_connection = mysql.connector.connect(**get_connector_options(job_properties))
+        self._mysql_connection = mysql.connector.connect(**JDBCUtils.get_connector_options(job_properties))
         self._logger.info(f"Successfully estabilished JDBC connection with default coordinates")
         self._mysql_cursor = self._mysql_connection.cursor()
 
@@ -148,16 +148,16 @@ class JDBCTableWriter(TableWriter):
         job_properties = self._job_properties
         dst_options = self._dst_options
 
-        return get_spark_writer_jdbc_options(job_properties,
-                                             url_key=dst_options.url,
-                                             driver_key=dst_options.driver,
-                                             user_key=dst_options.user,
-                                             password_key=dst_options.pass_word,
-                                             use_ssl_key=dst_options.use_ssl)
+        return JDBCUtils.get_spark_writer_jdbc_options(job_properties,
+                                                       url_key=dst_options.url,
+                                                       driver_key=dst_options.driver,
+                                                       user_key=dst_options.user,
+                                                       password_key=dst_options.pass_word,
+                                                       use_ssl_key=dst_options.use_ssl)
 
     def _create_db_if_not_exists(self, db_name: str) -> None:
 
-        create_db_if_not_exists(self._mysql_cursor, db_name)
+        JDBCUtils.create_db_if_not_exists(self._mysql_cursor, db_name)
 
     def write(self, df: DataFrame) -> None:
 

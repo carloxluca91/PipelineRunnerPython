@@ -13,8 +13,10 @@ class ColumnExpression(Enum):
     CURRENT_DATE_OR_TIMESTAMP = r"^(current_date|current_timestamp)\(\)$", True
     DF_COL = r"^(col)\('(\w+)'\)$", True
     LIT_COL = r"^(lit)\('(.+)'\)$", True
+    LOWER_OR_UPPER = r"^(lower|upper)\((.+\))\)$", False
     SUBSTRING = r"^(substring)\((.+\)),\s(\d+),\s(\d+)\)$", False
     TO_DATE_OR_TIMESTAMP = r"^(to_date|to_timestamp)\((.+\)), '(.+)'\)$", False
+    TRIM = r"^(trim)\((.+\))\)$", False
 
     def __init__(self, regex: str, is_static: bool):
 
@@ -71,10 +73,25 @@ class AbstractColumnExpression(ABC):
             else self._match.group(i)
 
 
+class LowerOrUpperExpression(AbstractColumnExpression):
+
+    def __init__(self, string: str):
+
+        super().__init__(string, ColumnExpression.LOWER_OR_UPPER)
+
+    @property
+    def to_string(self) -> str:
+        return f"{self.function_name}({self.nested_function})"
+
+    def transform(self, input_column: Column) -> Column:
+
+        is_lower = self.function_name == "lower"
+        return functions.lower(input_column) if is_lower else functions.upper(input_column)
+
+
 class SubstringExpression(AbstractColumnExpression):
 
-    def __init__(self,
-                 string: str):
+    def __init__(self, string: str):
 
         super().__init__(string, ColumnExpression.SUBSTRING)
 
@@ -83,17 +100,14 @@ class SubstringExpression(AbstractColumnExpression):
 
     @property
     def pos(self):
-
         return self._substring_start_index
 
     @property
     def length(self):
-
         return self._substring_length
 
     @property
     def to_string(self) -> str:
-
         return f"${self.function_name}({self.nested_function}, pos = '{self.pos}', length = '{self.length}')"
 
     def transform(self, input_column: Column) -> Column:
@@ -111,12 +125,10 @@ class ToDateOrTimestampExpression(AbstractColumnExpression):
 
     @property
     def format(self) -> str:
-
         return self._format
 
     @property
     def to_string(self) -> str:
-
         return f"{self.function_name}({self.nested_function}, format = '{self.format}')"
 
     def transform(self, input_column: Column) -> Column:
@@ -125,9 +137,26 @@ class ToDateOrTimestampExpression(AbstractColumnExpression):
         return functions.to_date(input_column, self.format) if is_to_date else functions.to_timestamp(input_column, self.format)
 
 
+class TrimExpression(AbstractColumnExpression):
+
+    def __init__(self, string: str):
+
+        super().__init__(string, ColumnExpression.TRIM)
+
+    @property
+    def to_string(self) -> str:
+        return f"{self.function_name}({self.nested_function})"
+
+    def transform(self, input_column: Column) -> Column:
+
+        return functions.trim(input_column)
+
+
 COLUMN_EXPRESSION_DICT = {
 
+    ColumnExpression.LOWER_OR_UPPER: LowerOrUpperExpression,
     ColumnExpression.SUBSTRING: SubstringExpression,
-    ColumnExpression.TO_DATE_OR_TIMESTAMP: ToDateOrTimestampExpression
+    ColumnExpression.TO_DATE_OR_TIMESTAMP: ToDateOrTimestampExpression,
+    ColumnExpression.TRIM: TrimExpression
 
 }

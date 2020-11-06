@@ -1,15 +1,14 @@
 import configparser
 import logging
-from typing import Dict
 
 from pyspark.sql import DataFrame, SparkSession
 
 from pypeline.abstract import AbstractStep
 from pypeline.write.option import CsvDstOptions, HiveTableDstOptions, JDBCTableDstOptions
 from pypeline.write.writer import HiveTableWriter, JDBCTableWriter
-from utils.spark import df_schema_tree_string
+from utils.spark import SparkUtils
 
-DST_OPTIONS_TYPE = {
+_DST_OPTIONS_TYPE = {
 
     "csv": CsvDstOptions,
     "hive": HiveTableDstOptions,
@@ -20,7 +19,6 @@ DST_OPTIONS_TYPE = {
 class WriteStep(AbstractStep):
 
     def __init__(self,
-                 spark_session: SparkSession,
                  name: str,
                  description: str,
                  step_type: str,
@@ -30,27 +28,23 @@ class WriteStep(AbstractStep):
         super().__init__(name, description, step_type, dataframe_id)
 
         self._logger = logging.getLogger(__name__)
-        self._spark_session = spark_session
         self._dst_type = dst_options["destinationType"]
-        self._dst_options = DST_OPTIONS_TYPE[self._dst_type].from_dict(dst_options)
+        self._dst_options = _DST_OPTIONS_TYPE[self._dst_type].from_dict(dst_options)
 
     @property
     def dst_type(self) -> str:
         return self._dst_type
 
-    def write(self, df_dict: Dict[str, DataFrame], job_properties: configparser.ConfigParser, spark_session: SparkSession) -> None:
+    def write(self, df: DataFrame, job_properties: configparser.ConfigParser, spark_session: SparkSession) -> None:
 
-        logger = self._logger
-        dst_options = self._dst_options
-        df = df_dict[self.dataframe_id]
+        self._logger.info(f"Starting to write dataframe '{self.dataframe_id}'. Schema {SparkUtils.df_schema_tree_string(df)}")
+        if isinstance(self._dst_options, HiveTableDstOptions):
 
-        logger.info(f"Dataframe to be written ('{self.dataframe_id}') schema {df_schema_tree_string(df)}")
-        if isinstance(dst_options, HiveTableDstOptions):
+            HiveTableWriter(job_properties, self._dst_options, spark_session).write(df)
 
-            HiveTableWriter(job_properties, dst_options, spark_session).write(df)
+        elif isinstance(self._dst_options, JDBCTableDstOptions):
 
-        elif isinstance(dst_options, JDBCTableDstOptions):
+            JDBCTableWriter(job_properties, self._dst_options).write(df)
 
-            JDBCTableWriter(job_properties, dst_options).write(df)
-
-        logger.info(f"Successfully executed write step '{self.name}'")
+        self._logger.info(f"Successfully written dataframe '{self.dataframe_id}'")
+        self._logger.info(f"Successfully executed write step '{self.name}'")

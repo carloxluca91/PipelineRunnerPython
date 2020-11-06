@@ -1,7 +1,8 @@
+from datetime import date, datetime
 from typing import List, Union
 
 from pypeline.abstract import AbstractJsonElement
-from utils.time import PYTHON_DT_FORMAT_CONVERTER, PYTHON_TS_FORMAT_CONVERTER
+from utils.time import TimeUtils
 
 
 class DateOrTimestampMetadata(AbstractJsonElement):
@@ -17,29 +18,25 @@ class DateOrTimestampMetadata(AbstractJsonElement):
 
         super().__init__()
 
-        from datetime import date, datetime
-        from pipeline_runner.utils.time import to_datetime, to_date
-        from pipeline_runner.utils.time import DEFAULT_TIMESTAMP_FORMAT, DEFAULT_DATE_FORMAT
+        default_date_format = TimeUtils.default_date_format()
+        default_timestamp_format = TimeUtils.default_timestamp_format()
 
         self.is_date = is_date
-        self.lower_bound_dtt = to_date(lower_bound, DEFAULT_DATE_FORMAT) if is_date \
-            else to_datetime(lower_bound, DEFAULT_TIMESTAMP_FORMAT)
+        self.lower_bound_dtt = TimeUtils.to_date(lower_bound, default_date_format) if is_date \
+            else TimeUtils.to_datetime(lower_bound, default_timestamp_format)
 
         default_upper_bound: Union[date, datetime] = datetime.now().date() if is_date else datetime.now()
         self.upper_bound_dtt = default_upper_bound if upper_bound is None else \
-            to_date(upper_bound, DEFAULT_DATE_FORMAT) if is_date \
-                else to_datetime(upper_bound, DEFAULT_TIMESTAMP_FORMAT)
+            TimeUtils.to_date(upper_bound, default_date_format) if is_date \
+                else TimeUtils.to_datetime(upper_bound, default_timestamp_format)
 
         self.java_output_format = output_format
-        self.python_output_format = PYTHON_DT_FORMAT_CONVERTER[output_format] if is_date \
-            else PYTHON_TS_FORMAT_CONVERTER[output_format]
+        self.python_output_format = TimeUtils.to_python_format(output_format)
 
         self.corrupt_flag = corrupt_flag
         self.corrupt_probability = corrupt_probability
         self.java_corrupt_format = corrupt_format
-        self.python_corrupt_format = corrupt_format if corrupt_format is None \
-            else PYTHON_DT_FORMAT_CONVERTER[corrupt_format] if is_date \
-            else PYTHON_TS_FORMAT_CONVERTER[corrupt_format]
+        self.python_corrupt_format = TimeUtils.to_python_format(self.java_corrupt_format)
 
 
 class DateColumnMetadata(DateOrTimestampMetadata):
