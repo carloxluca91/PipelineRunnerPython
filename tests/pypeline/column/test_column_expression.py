@@ -20,7 +20,7 @@ class TestColumnExpression(AbstractTestCase):
         substring_length = 5
         column_name = "dt_inserimento"
 
-        substring_regex = ColumnExpressions.SUBSTRING._regex
+        substring_regex = ColumnExpressions.SUBSTRING.regex
         expression_list: List[str] = [f"substring(col('{column_name}'), {substring_start_index}, {substring_length})",
                                       f"substring(lpad(col('{column_name}'), 10, '0'), {substring_start_index}, {substring_length})"]
 

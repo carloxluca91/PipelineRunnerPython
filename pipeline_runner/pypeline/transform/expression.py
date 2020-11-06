@@ -12,6 +12,7 @@ class ColumnExpressions(Enum):
 
     CURRENT_DATE_OR_TIMESTAMP = r"^(current_date|current_timestamp)\(\)$", True
     DF_COL = r"^(col)\('(\w+)'\)$", True
+    LEFT_OR_RIGHT_PAD = r"^([l|r]pad)\((.+\)),\s(\d+),\s'(.+)'\)$", False
     LIT_COL = r"^(lit)\('(.+)'\)$", True
     LOWER_OR_UPPER = r"^(lower|upper)\((.+\))\)$", False
     SUBSTRING = r"^(substring)\((.+\)),\s(\d+),\s(\d+)\)$", False
@@ -73,6 +74,33 @@ class AbstractColumnExpression(ABC):
             else self._match.group(i)
 
 
+class LeftOrRightPadExpression(AbstractColumnExpression):
+
+    def __init__(self, string: str):
+
+        super().__init__(string, ColumnExpressions.LEFT_OR_RIGHT_PAD)
+
+        self._padding_length: int = int(self._group(3))
+        self._padding_str: str = self._group(4)
+
+    @property
+    def padding_length(self) -> int:
+        return self._padding_length
+
+    @property
+    def padding_str(self) -> str:
+        return self._padding_str
+
+    @property
+    def to_string(self) -> str:
+        return f"{self.function_name}({self.nested_function}, padding_length = {self.padding_length}, padding_str = '{self.padding_str}')"
+
+    def transform(self, input_column: Column) -> Column:
+
+        padding_function = functions.lpad if self.function_name == "lpad" else functions.rpad
+        return padding_function(input_column, len=self.padding_length, pad=self.padding_str)
+
+
 class LowerOrUpperExpression(AbstractColumnExpression):
 
     def __init__(self, string: str):
@@ -85,8 +113,8 @@ class LowerOrUpperExpression(AbstractColumnExpression):
 
     def transform(self, input_column: Column) -> Column:
 
-        is_lower = self.function_name == "lower"
-        return functions.lower(input_column) if is_lower else functions.upper(input_column)
+        str_function = functions.lower if self.function_name == "lower" else functions.upper
+        return str_function(input_column)
 
 
 class SubstringExpression(AbstractColumnExpression):
@@ -133,8 +161,8 @@ class ToDateOrTimestampExpression(AbstractColumnExpression):
 
     def transform(self, input_column: Column) -> Column:
 
-        is_to_date = self.function_name.lower() == "to_date"
-        return functions.to_date(input_column, self.format) if is_to_date else functions.to_timestamp(input_column, self.format)
+        time_format_function = functions.to_date if self.function_name == "to_date" else functions.to_timestamp
+        return time_format_function(input_column, self.format)
 
 
 class TrimExpression(AbstractColumnExpression):
@@ -154,6 +182,7 @@ class TrimExpression(AbstractColumnExpression):
 
 COLUMN_EXPRESSION_DICT = {
 
+    ColumnExpressions.LEFT_OR_RIGHT_PAD: LeftOrRightPadExpression,
     ColumnExpressions.LOWER_OR_UPPER: LowerOrUpperExpression,
     ColumnExpressions.SUBSTRING: SubstringExpression,
     ColumnExpressions.TO_DATE_OR_TIMESTAMP: ToDateOrTimestampExpression,
