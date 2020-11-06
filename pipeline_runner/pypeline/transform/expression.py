@@ -8,7 +8,7 @@ from pyspark.sql import functions
 
 
 @unique
-class ColumnExpression(Enum):
+class ColumnExpressions(Enum):
 
     CURRENT_DATE_OR_TIMESTAMP = r"^(current_date|current_timestamp)\(\)$", True
     DF_COL = r"^(col)\('(\w+)'\)$", True
@@ -42,7 +42,7 @@ class AbstractColumnExpression(ABC):
 
     def __init__(self,
                  string: str,
-                 column_expression_regex: ColumnExpression):
+                 column_expression_regex: ColumnExpressions):
 
         self._logger = logging.getLogger(__name__)
         self._match = re.match(column_expression_regex.regex, string)
@@ -77,7 +77,7 @@ class LowerOrUpperExpression(AbstractColumnExpression):
 
     def __init__(self, string: str):
 
-        super().__init__(string, ColumnExpression.LOWER_OR_UPPER)
+        super().__init__(string, ColumnExpressions.LOWER_OR_UPPER)
 
     @property
     def to_string(self) -> str:
@@ -93,7 +93,7 @@ class SubstringExpression(AbstractColumnExpression):
 
     def __init__(self, string: str):
 
-        super().__init__(string, ColumnExpression.SUBSTRING)
+        super().__init__(string, ColumnExpressions.SUBSTRING)
 
         self._substring_start_index: int = int(self._group(3))
         self._substring_length: int = int(self._group(4))
@@ -119,7 +119,7 @@ class ToDateOrTimestampExpression(AbstractColumnExpression):
 
     def __init__(self, string: str):
 
-        super().__init__(string, ColumnExpression.TO_DATE_OR_TIMESTAMP)
+        super().__init__(string, ColumnExpressions.TO_DATE_OR_TIMESTAMP)
 
         self._format = self._group(3)
 
@@ -141,7 +141,7 @@ class TrimExpression(AbstractColumnExpression):
 
     def __init__(self, string: str):
 
-        super().__init__(string, ColumnExpression.TRIM)
+        super().__init__(string, ColumnExpressions.TRIM)
 
     @property
     def to_string(self) -> str:
@@ -154,9 +154,9 @@ class TrimExpression(AbstractColumnExpression):
 
 COLUMN_EXPRESSION_DICT = {
 
-    ColumnExpression.LOWER_OR_UPPER: LowerOrUpperExpression,
-    ColumnExpression.SUBSTRING: SubstringExpression,
-    ColumnExpression.TO_DATE_OR_TIMESTAMP: ToDateOrTimestampExpression,
-    ColumnExpression.TRIM: TrimExpression
+    ColumnExpressions.LOWER_OR_UPPER: LowerOrUpperExpression,
+    ColumnExpressions.SUBSTRING: SubstringExpression,
+    ColumnExpressions.TO_DATE_OR_TIMESTAMP: ToDateOrTimestampExpression,
+    ColumnExpressions.TRIM: TrimExpression
 
 }

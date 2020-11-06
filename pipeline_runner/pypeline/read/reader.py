@@ -7,7 +7,7 @@ from pyspark.sql import SparkSession, DataFrame
 from pyspark.sql.types import StructType, StructField
 
 from pypeline.read.option import CsvSrcOptions, HiveTableSrcOptions
-from utils.json import load_json
+from utils.json import JsonUtils
 from utils.spark import SparkUtils
 
 
@@ -44,20 +44,19 @@ class CsvReader(AbstractReader):
 
     def _from_json_to_structype(self, json_file_path: str) -> StructType:
 
-        json_dict: dict = load_json(json_file_path)
+        json_dict: dict = JsonUtils.load_json(json_file_path)
 
         def to_structfield(dict_: dict) -> StructField:
 
             return StructField(dict_["name"], SparkUtils.get_spark_datatype(dict_["dataType"]), dict_["nullable"])
 
         structtype_from_json = StructType(list(map(to_structfield, json_dict["columns"])))
-        self._logger.info(f"Successfully retrieved StructType from file '{json_file_path}'")
+        self._logger.info(f"Successfully retrieved {StructType.__name__} from file '{json_file_path}'")
         return structtype_from_json
 
     def read(self) -> DataFrame:
 
         src_type = self._src_options.src_type
-        spark_session = self._spark_session
 
         path = self.get(src_type, self._src_options.path)
         schema_file = self.get(src_type, self._src_options.schema_file)
@@ -65,7 +64,7 @@ class CsvReader(AbstractReader):
         separator = self.get_or_else(src_type, self._src_options.separator, ",")
 
         self._logger.info(f"Starting to load .csv data from path '{path}', header = '{header}', separator = '{separator}'")
-        df = spark_session\
+        df = self._spark_session\
             .read\
             .option("header", header)\
             .option("sep", separator)\

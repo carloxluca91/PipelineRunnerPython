@@ -3,7 +3,7 @@ import logging
 from pyspark.sql import Column
 from pyspark.sql import functions
 
-from pypeline.transform.expression import COLUMN_EXPRESSION_DICT, ColumnExpression
+from pypeline.transform.expression import COLUMN_EXPRESSION_DICT, ColumnExpressions
 
 
 class ColumnExpressionParser:
@@ -15,10 +15,10 @@ class ColumnExpressionParser:
 
         logger = cls._logger
 
-        matching_static_expressions = list(filter(lambda x: x.is_static and x.match(column_expression), ColumnExpression))
+        matching_static_expressions = list(filter(lambda x: x.is_static and x.match(column_expression), ColumnExpressions))
         matching_static_expression = matching_static_expressions[0]
         regex_match = matching_static_expression.match(column_expression)
-        if matching_static_expression == ColumnExpression.CURRENT_DATE_OR_TIMESTAMP:
+        if matching_static_expression == ColumnExpressions.CURRENT_DATE_OR_TIMESTAMP:
 
             is_date = regex_match.group(1).lower() == "current_date"
             logger.info(f"Detected static function '{regex_match.group(1)}'")
@@ -26,8 +26,8 @@ class ColumnExpressionParser:
 
         else:
 
-            df_col_match = ColumnExpression.DF_COL.match(column_expression)
-            lit_col_match = ColumnExpression.LIT_COL.match(column_expression)
+            df_col_match = ColumnExpressions.DF_COL.match(column_expression)
+            lit_col_match = ColumnExpressions.LIT_COL.match(column_expression)
             function_name = df_col_match.group(1) if df_col_match else lit_col_match.group(1)
             function_argument = df_col_match.group(2) if df_col_match else lit_col_match.group(2)
 
@@ -41,7 +41,7 @@ class ColumnExpressionParser:
         logger = cls._logger
 
         # Filter list of defined ColumnExpression
-        matching_column_expressions = list(filter(lambda x: x.match(column_expression), [r for r in ColumnExpression]))
+        matching_column_expressions = list(filter(lambda x: x.match(column_expression), [r for r in ColumnExpressions]))
         if len(matching_column_expressions) == 0:
 
             logger.error(f"Unable to match such column expression '{column_expression}'")
@@ -50,7 +50,7 @@ class ColumnExpressionParser:
         else:
 
             # If one matches the provided column_expression, check wheter it is static or not
-            matching_column_expression: ColumnExpression = matching_column_expressions[0]
+            matching_column_expression: ColumnExpressions = matching_column_expressions[0]
             if matching_column_expression.is_static:
 
                 logger.info(f"No further nested function detected")

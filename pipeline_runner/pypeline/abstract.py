@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-from utils.json import from_java_to_python_convention
+from utils.json import JsonUtils
 
 
 class AbstractJsonElement(ABC):
@@ -11,7 +11,7 @@ class AbstractJsonElement(ABC):
 
     @classmethod
     def from_dict(cls, dict_: dict):
-        return cls(**from_java_to_python_convention(dict_))
+        return cls(**JsonUtils.from_java_to_python_convention(dict_))
 
 
 class AbstractPipelineElement(AbstractJsonElement, ABC):

@@ -82,11 +82,11 @@ class Pipeline(AbstractPipelineElement):
 
                     typed_step = WriteStep.from_dict(raw_step)
                     write_df: DataFrame = self._df_dict[typed_step.dataframe_id]
-                    typed_step.write(write_df, self._job_properties)
+                    typed_step.write(write_df, self._job_properties, self._spark_session)
 
             except Exception as e:
 
-                self._logger.exception(f"Caught exception while running step # {index}, name '{step_name}', type '{step_type}'", e)
+                self._logger.exception(f"Caught exception while running step # {index}, name '{step_name}', type '{step_type}'")
                 self._log_records.append(self._build_log_record(index, step_name, step_description, step_type, dataframe_id, e))
                 self._write_log_records()
                 everything_ok = False
@@ -101,6 +101,10 @@ class Pipeline(AbstractPipelineElement):
 
             self._write_log_records()
             self._logger.info(f"Successfully executed whole pipeline '{self.name}'")
+
+        else:
+
+            self._logger.warning(f"Unable to fully execute pipeline '{self.name}'")
 
     def _update_df_dict(self, dataframe_id: str, df: DataFrame):
 
@@ -166,6 +170,7 @@ class Pipeline(AbstractPipelineElement):
         self._logger.info(f"Starting to insert data into table '{log_table_name_full}' using save_mode '{log_table_savemode}'")
 
         logging_dataframe \
+            .coalesce(1) \
             .write \
             .format("jdbc") \
             .options(**JDBCUtils.get_spark_writer_jdbc_options(self._job_properties)) \

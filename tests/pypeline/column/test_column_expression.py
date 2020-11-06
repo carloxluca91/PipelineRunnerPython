@@ -2,6 +2,8 @@ import re
 import unittest
 from typing import List
 
+from pypeline.transform.expression import SubstringExpression
+from pypeline.transform.expression import ColumnExpressions
 from tests.abstract import AbstractTestCase
 
 
@@ -14,14 +16,11 @@ class TestColumnExpression(AbstractTestCase):
 
     def test_substring_transformation(self):
 
-        from pypeline.transform.expression import SubstringExpression
-        from pypeline.transform.expression import ColumnExpression
-
         substring_start_index = 0
         substring_length = 5
         column_name = "dt_inserimento"
 
-        substring_regex = ColumnExpression.SUBSTRING._regex
+        substring_regex = ColumnExpressions.SUBSTRING._regex
         expression_list: List[str] = [f"substring(col('{column_name}'), {substring_start_index}, {substring_length})",
                                       f"substring(lpad(col('{column_name}'), 10, '0'), {substring_start_index}, {substring_length})"]
 

@@ -8,7 +8,7 @@ from pypeline.abstract import AbstractStep
 from pypeline.create.column import TypedColumn, DateOrTimestampColumn, RandomColumn
 from utils.spark import SparkUtils
 
-_DATAFRAME_COLUMN_SWICTH = {
+_COLUMN_DTYPE = {
 
     "timestamp": DateOrTimestampColumn,
     "date": DateOrTimestampColumn,
@@ -62,7 +62,7 @@ class CreateStep(AbstractStep):
             column_name: str = dataframe_column["name"]
             column_description: str = dataframe_column["description"]
 
-            typed_column: TypedColumn = _DATAFRAME_COLUMN_SWICTH[column_type_lc].from_dict(dataframe_column)
+            typed_column: TypedColumn = _COLUMN_DTYPE[column_type_lc].from_dict(dataframe_column)
             logger.info(f"Successfully parsed metadata for column # {index} (columnName = '{column_name}', description = '{column_description}')")
             list_of_typed_columns.append(typed_column)
 

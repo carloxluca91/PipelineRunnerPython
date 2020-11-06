@@ -47,7 +47,7 @@ class TransformStep(AbstractStep):
     def transform(self, df_dict: Dict[str, DataFrame]) -> DataFrame:
 
         transformation = _TRANSFORMATION_DICT[self.transformation_type](self.name, self.transformation_options)
-        self._logger.info(f"Successfully initialized transformation operation for transformStep '{self.name}'")
+        self._logger.info(f"Successfully initialized transform step '{self.name}'")
 
         df: DataFrame = transformation.transform(df_dict)
         input_source_id = transformation.transformation_options.input_source_id

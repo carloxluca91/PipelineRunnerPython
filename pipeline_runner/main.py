@@ -10,18 +10,15 @@ if __name__ == '__main__':
     from pypeline.runner import PipelineRunner
 
     # Logging configuration
-
     with open("pipeline_runner/logging.ini", "r", encoding="UTF-8") as f:
         config.fileConfig(f)
 
     logger = logging.getLogger(__name__)
-    logger.info("Successfully loaded logging configuration")
+    logger.info("\nSuccessfully loaded logging configuration")
     parser = argparse.ArgumentParser()
 
     # Option -n, --name (Pipeline Name)
-
-    parser.add_argument("-n",
-                        "--name",
+    parser.add_argument("-n", "--name",
                         type=str,
                         dest="pipeline_name",
                         metavar=".pipeline_name",
@@ -29,9 +26,7 @@ if __name__ == '__main__':
                         required=True)
 
     # Option -i, --ini (Spark Job .ini File)
-
-    parser.add_argument("-i",
-                        "--ini",
+    parser.add_argument("-i", "--ini",
                         type=str,
                         dest="ini_file",
                         metavar=".ini file path",

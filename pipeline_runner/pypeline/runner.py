@@ -1,12 +1,12 @@
-import json
 import logging
 from configparser import ConfigParser
-from typing import List
+from typing import List, Dict
 
 from pyspark.sql import Row
 from pyspark.sql import functions, SparkSession
 
 from pypeline.pipeline import Pipeline
+from utils.json import JsonUtils
 
 
 class PipelineRunner:
@@ -20,7 +20,6 @@ class PipelineRunner:
         self._job_properties = job_properties
 
         # Initialize SparkSession
-
         self._spark_session: SparkSession = SparkSession.builder \
             .enableHiveSupport() \
             .config("hive.exec.dynamic.partition", "true") \
@@ -72,11 +71,7 @@ class PipelineRunner:
 
             pipeline_file_path = self._job_properties["hdfs"]["pipeline.initialLoad.json.file.path"]
 
-        with open(pipeline_file_path, mode="r", encoding="UTF-8") as f:
-
-            json_dict: dict = json.load(f)
-
-        pipeline_input_dict = json_dict
+        pipeline_input_dict: Dict = JsonUtils.load_json(pipeline_file_path)
         pipeline_input_dict["jobProperties"] = self._job_properties
         pipeline_input_dict["sparkSession"] = self._spark_session
 

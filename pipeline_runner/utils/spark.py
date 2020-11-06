@@ -3,7 +3,8 @@ from typing import List, Dict
 
 from pyspark.sql import DataFrame
 from pyspark.sql.types import StructType, StructField
-from pyspark.sql.types import DataType, StringType, IntegerType, DoubleType, LongType, DateType, TimestampType
+from pyspark.sql.types import DataType, StringType, IntegerType, DoubleType, \
+    LongType, DateType, TimestampType
 
 
 class SparkUtils:
