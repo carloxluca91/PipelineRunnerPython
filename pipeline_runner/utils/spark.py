@@ -1,4 +1,5 @@
 import datetime
+import logging
 from typing import List, Dict
 
 from pyspark.sql import DataFrame
@@ -8,8 +9,10 @@ from pyspark.sql.types import StructType, StructField
 
 class SparkUtils:
 
+    _logger = logging.getLogger(__name__)
     _SPARK_TYPE_MAPPING: Dict[str, DataType] = {
 
+        "str": StringType(),
         "int": IntegerType(),
         "long": LongType(),
         "date": DateType(),
@@ -29,6 +32,10 @@ class SparkUtils:
 
     @classmethod
     def get_spark_datatype(cls, type_: str) -> DataType:
+
+        if type_ not in cls._SPARK_TYPE_MAPPING:
+
+            cls._logger.warning(f"Datatype '{type_}' not defined within _SPARK_TYPE_MAPPING. Returning default type ({StringType.__name__})")
 
         return cls._SPARK_TYPE_MAPPING.get(type_, StringType())
 

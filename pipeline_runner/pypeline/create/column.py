@@ -1,35 +1,44 @@
 import logging
-import numpy as np
+from datetime import datetime, date
+from typing import List, Union, Dict, Any, Tuple
 
-from abc import abstractmethod, ABC
-from typing import List, Iterable, Union
+import numpy as np
+from pyspark.sql import SparkSession
 
 from pypeline.abstract import AbstractPipelineElement
-from pypeline.create.metadata import DateColumnMetadata, RandomColumnMetadata, TimestampColumnMetadata
+from pypeline.create.metadata import RandomColumnMetadata, DateOrTimestampMetadata
+from utils.time import TimeUtils
 
-_DEFAULT_NULLABLE = True
-_DEFAULT_NULLABLE_PROBABILITY = 0.005
+T = Union[DateOrTimestampMetadata, RandomColumnMetadata]
+
+_METADATA_TYPE = {
+
+    "date": DateOrTimestampMetadata,
+    "timestamp": DateOrTimestampMetadata
+}
 
 
-class TypedColumn(AbstractPipelineElement, ABC):
+class TypedColumn(AbstractPipelineElement):
 
     def __init__(self,
                  name: str,
                  description: str,
                  column_type: str,
                  column_number: int,
-                 nullable: bool = _DEFAULT_NULLABLE,
-                 nullable_probability: float = _DEFAULT_NULLABLE_PROBABILITY):
+                 metadata: Dict[str, str],
+                 nullable: bool = True,
+                 nullable_probability: float = 0.005):
 
         super().__init__(name, description)
 
         self._logger = logging.getLogger(__name__)
         self._rng = np.random.RandomState()
 
-        self._column_type = column_type
+        self._column_type = column_type.lower()
         self._nullable = nullable
         self._nullable_probability = nullable_probability
         self._column_number = column_number
+        self._typed_metadata: T = _METADATA_TYPE.get(self._column_type, RandomColumnMetadata).from_dict(metadata)
 
     @property
     def column_type(self) -> str:
@@ -40,119 +49,72 @@ class TypedColumn(AbstractPipelineElement, ABC):
         return self._nullable
 
     @property
-    def nullable_probability(self) -> float:
-        return self._nullable_probability
-
-    @property
     def column_number(self) -> int:
         return self._column_number
 
-    def _corrupt_with_none(self, original_data):
+    def create(self, number_of_records: int, spark_session: SparkSession) -> List[Any]:
 
-        nullable_probability: float = self._nullable_probability
-        self._logger.info(f"Corrupting original data of column '{self.name}' using probability = {nullable_probability}")
-        none_probabilities: Iterable[int] = self._rng.choice([0, 1], len(original_data), p=[1 - nullable_probability, nullable_probability])
-        return [original_datum if prob == 0 else None for original_datum, prob in zip(original_data, none_probabilities)]
+        typed_metadata = self._typed_metadata
+        if isinstance(typed_metadata, DateOrTimestampMetadata):
 
-    @abstractmethod
-    def create(self, number_of_records: int):
-        pass
+            is_date = typed_metadata.is_date
+            lower_bound = typed_metadata.lower_bound
+            time_delta = typed_metadata.time_delta
 
+            # Define a lambda expression depending on column type
+            date_or_datetime_lambda = (lambda x: (lower_bound + time_delta * x).date()) if is_date else (lambda x: (lower_bound + time_delta * x))
+            random_data: List[Union[date, datetime]] = list(map(date_or_datetime_lambda, self._rng.random_sample(number_of_records)))
 
-class DateOrTimestampColumn(TypedColumn):
+            # If dates (or timestamps) must be converted to strings
+            if typed_metadata.as_string:
 
-    def __init__(self,
-                 name: str,
-                 description: str,
-                 column_type: str,
-                 column_number: int,
-                 metadata: dict,
-                 nullable: bool = _DEFAULT_NULLABLE,
-                 nullable_probability: float = _DEFAULT_NULLABLE_PROBABILITY):
+                java_output_format: str = typed_metadata.java_output_format
+                self._logger.info(f"Converting {self._column_type}s within column '{self.name}' to string with format '{java_output_format}'")
+                random_data: List[str] = list(map(lambda x: TimeUtils.format(x, java_output_format), random_data))
 
-        super().__init__(name,
-                         description,
-                         column_type,
-                         column_number,
-                         nullable,
-                         nullable_probability)
+                # Check if data have to be corrupted with wrong time formats
+                corrupt_flag = typed_metadata.corrupt_flag
+                corrupt_prob = typed_metadata.corrupt_prob
+                java_corrupt_format = typed_metadata.java_corrupt_format
 
-        self._metadata = TimestampColumnMetadata.from_dict(metadata) if column_type.lower() == "timestamp" \
-            else DateColumnMetadata.from_dict(metadata)
+                if corrupt_flag and corrupt_prob and java_corrupt_format:
 
-    @property
-    def metadata(self):
-        return self._metadata
+                    # If so, some dates (or timestamps), now as strings, must be converted back and forth in order to modify their string format
+                    self._logger.info(f"Corrupting {self._column_type}s within column '{self.name}' "
+                                      f"with prob {typed_metadata.corrupt_prob}, "
+                                      f"format = '{typed_metadata.java_corrupt_format}')")
 
-    def create(self, number_of_records: int) -> List[str]:
+                    corruption_probabilities = self._rng.choice([0, 1], number_of_records, p=[1 - corrupt_prob, corrupt_prob])
 
-        from datetime import date, datetime, timedelta
+                    # Function for modifying date (or timestamp) string format
+                    def corrupt_lambda(t: Tuple[str, int]) -> str:
 
-        # CONVERT BOTH lower_bound AND upper_bound AS datetime.datetime OBJECTS AND COMPUTE RELATED TIMEDELTA
-        lower_bound_dtt: Union[date, datetime] = self._metadata.lower_bound_dtt
-        upper_bound_dtt: Union[date, datetime] = self._metadata.upper_bound_dtt
-        time_delta: timedelta = upper_bound_dtt - lower_bound_dtt
+                        dt_or_ts, prob = t[0], t[1]
+                        return TimeUtils.format(TimeUtils.to_datetime(dt_or_ts, java_output_format), java_corrupt_format) if prob == 1 \
+                            else dt_or_ts
 
-        # EXTRACT INFORMATION ABOUT DATA CORRUPTION
-        data_corruption_flag: bool = self._metadata.corrupt_flag
-        data_corruption_prob: float = self._metadata.corrupt_probability
-        java_corrupting_format: str = self._metadata.java_corrupt_format
-        python_corrupting_format: str = self._metadata.python_corrupt_format
-
-        python_output_format: str = self._metadata.python_output_format
-        random_samples = self._rng.random_sample(number_of_records)
-        random_ts_or_dates: List[str] = [(lower_bound_dtt + (time_delta * rn)).strftime(python_output_format) for rn in random_samples]
-
-        # CORRUPT DATA, IF NECESSARY
-        if data_corruption_flag and data_corruption_prob and python_corrupting_format:
-
-            self._logger.info(f"Corrupting operation details (probability = {data_corruption_prob}, format = '{java_corrupting_format}')")
-            corruption_probabilities = self._rng.choice([0, 1], number_of_records, p=[1 - data_corruption_prob, data_corruption_prob])
-            random_ts_or_dates = [datetime.strptime(random_ts_or_date, python_output_format).strftime(python_corrupting_format) if p == 1
-                                  else random_ts_or_date
-                                  for random_ts_or_date, p in zip(random_ts_or_dates, corruption_probabilities)]
-
-        return self._corrupt_with_none(random_ts_or_dates) if self.nullable else random_ts_or_dates
-
-
-class RandomColumn(TypedColumn):
-
-    def __init__(self,
-                 name: str,
-                 description: str,
-                 column_type: str,
-                 column_number: int,
-                 metadata: dict,
-                 nullable: bool = _DEFAULT_NULLABLE,
-                 nullable_probability: float = _DEFAULT_NULLABLE_PROBABILITY):
-
-        super().__init__(name,
-                         description,
-                         column_type,
-                         column_number,
-                         nullable,
-                         nullable_probability)
-
-        self._metadata = RandomColumnMetadata.from_dict(metadata)
-
-    @property
-    def metadata(self):
-        return self._metadata
-
-    def create(self, number_of_records: int):
-
-        metadata = self._metadata
-        values_length: int = len(metadata.values)
-        p_length: int = len(metadata.p)
-        p_sum: float = sum(metadata.p)
-
-        if (values_length == p_length) and p_sum == 1:
-
-            original_data = self._rng.choice(metadata.values, size=number_of_records, p=metadata.p)
-            return self._corrupt_with_none(original_data) if self.nullable else original_data
+                    random_data: List[str] = list(map(corrupt_lambda, zip(random_data, corruption_probabilities)))
 
         else:
 
-            raise ValueError(f"The number of provided values ({values_length}) does not match "
-                             f"the number of provided probabilities ({p_length}), "
-                             f"or the probailities do not sum up to 1 ({p_sum})")
+            # If values to be picked (and their probabilities) are embedded within column infos
+            if typed_metadata.has_embedded_data:
+
+                random_data = self._rng.choice(typed_metadata.embedded_values, size=number_of_records, p=typed_metadata.embedded_probs)
+
+            else:
+
+                # Retrieve values to be picked (and their probabilities) from Hive table
+                # TODO
+                random_data = []
+
+        if self._nullable:
+
+            nullable_probability = self._nullable_probability
+            self._logger.info(f"Corrupting data of column '{self.name}' with some None values using probability = {nullable_probability}")
+            none_probabilities = self._rng.choice([0, 1], len(random_data), p=[1 - nullable_probability, nullable_probability])
+            return [original_datum if prob == 0 else None for original_datum, prob in zip(random_data, none_probabilities)]
+
+        else:
+
+            return random_data

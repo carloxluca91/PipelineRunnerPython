@@ -25,6 +25,6 @@ setup(
     package_data={"pipeline_runner": ["logging.ini"]},
     include_package_data=True,
     cmdclass={'build_py': BuildPy},
-    install_requires=["pyspark>=2.2", "numpy", "pandas", "mysql-connector-python"],
+    install_requires=["pyspark>=2.2", "numpy", "mysql-connector-python"],
     python_requires='>=3.6'
 )
