@@ -1,8 +1,9 @@
 import logging
-import pandas as pd
-from typing import List, Dict
+from typing import List
 
 from pyspark.sql import DataFrame, SparkSession
+# noinspection PyProtectedMember
+from pyspark.sql.types import StructField, StructType, Row
 
 from pypeline.abstract import AbstractStep
 from pypeline.create.column import TypedColumn, DateOrTimestampColumn, RandomColumn
@@ -14,12 +15,6 @@ _COLUMN_DTYPE = {
     "date": DateOrTimestampColumn,
     "string": RandomColumn,
     "int": RandomColumn
-}
-
-_PD_DATAFRAME_DTYPE = {
-
-    "int": "int",
-    "float": "float",
 }
 
 
@@ -49,53 +44,42 @@ class CreateStep(AbstractStep):
 
     def _parse_columns_specifications(self, dataframe_columns: List[dict]):
 
-        logger = self._logger
-
         list_of_typed_columns: List[TypedColumn] = []
-        logger.info(f"Starting to process metadata for each of the {len(dataframe_columns)} column(s) "
-                    f"of create step '{self._name}' "
-                    f"('{self._description}')")
+        self._logger.info(f"Starting to process metadata for each of the {len(dataframe_columns)} column(s) of create step '{self.name}'")
 
         for index, dataframe_column in enumerate(dataframe_columns, start=1):
 
             column_type_lc: str = dataframe_column["columnType"]
             column_name: str = dataframe_column["name"]
-            column_description: str = dataframe_column["description"]
 
             typed_column: TypedColumn = _COLUMN_DTYPE[column_type_lc].from_dict(dataframe_column)
-            logger.info(f"Successfully parsed metadata for column # {index} (columnName = '{column_name}', description = '{column_description}')")
+            self._logger.info(f"Successfully parsed metadata for column # {index} ('{column_name}')")
             list_of_typed_columns.append(typed_column)
 
-        logger.info(f"Successfully processed metadata for each of the {len(dataframe_columns)} column(s) "
-                    f"of create step '{self._name}' "
-                    f"('{self._description}')")
+        self._logger.info(f"Successfully processed metadata for each of the {len(dataframe_columns)} column(s) of create step '{self._name}'")
 
         return list_of_typed_columns
 
     def create(self, spark_session: SparkSession) -> DataFrame:
 
-        logger = self._logger
+        column_data: List[List] = []
+        struct_field_list: List[StructField] = []
 
-        dict_of_series: Dict[str, pd.Series] = {}
-        dict_of_dtypes: Dict[str, str] = {}
         sorted_typed_columns: List[TypedColumn] = sorted(self._typed_columns, key=lambda x: x.column_number)
-
-        logger.info(f"Starting to populate each of the {len(sorted_typed_columns)} dataframe column(s)")
+        self._logger.info(f"Starting to populate each of the {len(sorted_typed_columns)} dataframe column(s)")
         for index, typed_column in enumerate(sorted_typed_columns, start=1):
 
-            series = pd.Series(data=typed_column.create(self._number_of_records), name=typed_column._name)
-            dict_of_series[typed_column.name] = series
-            dict_of_dtypes[typed_column.name] = _PD_DATAFRAME_DTYPE.get(typed_column.column_type, "str")
-            logger.info(f"Successfully populated column # {index} (name = '{typed_column.name}', description = '{typed_column.description}'")
+            column_data.append(typed_column.create(self._number_of_records))
+            struct_field = StructField(typed_column.name, SparkUtils.get_spark_datatype(typed_column.column_type), nullable=True)
+            struct_field_list.append(struct_field)
+            self._logger.info(f"Successfully populated column # {index} (name = '{typed_column.name}', description = '{typed_column.description}'")
 
-        logger.info(f"Successfully populated each of the {len(sorted_typed_columns)} dataframe column(s)")
+        self._logger.info(f"Successfully populated each of the {len(sorted_typed_columns)} dataframe column(s)")
 
-        pd_dataframe = pd.DataFrame.from_dict(dict_of_series).astype(dtype=dict_of_dtypes)
+        data: List[Row] = [Row(*t) for t in zip(*column_data)]
+        schema = StructType(struct_field_list)
+        spark_dataframe = spark_session.createDataFrame(data, schema)
 
-        logger.info("Successfully created pandas.DataFrame")
-
-        spark_dataframe = spark_session.createDataFrame(pd_dataframe)
-
-        logger.info(f"Successfully created pyspark DataFrame '{self.dataframe_id}'. Schema {SparkUtils.df_schema_tree_string(spark_dataframe)}")
-        logger.info(f"Successfully executed create step '{self.name}'")
+        self._logger.info(f"Successfully created pyspark DataFrame '{self.dataframe_id}'. Schema {SparkUtils.df_schema_tree_string(spark_dataframe)}")
+        self._logger.info(f"Successfully executed create step '{self.name}'")
         return spark_dataframe

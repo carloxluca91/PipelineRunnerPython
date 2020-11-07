@@ -62,9 +62,9 @@ class HiveTableWriter(TableWriter):
                 create_db_statement + f" LOCATION '{create_db_location}'"
 
             location_info = "default location" if create_db_location is None else f"location '{create_db_location}'"
-            self._logger.info(f"Creating Hive database '{db_name}' at " + location_info)
+            self._logger.info(f"Creating Hive database '{db_name}' at {location_info}")
             self._spark_session.sql(create_db_statement_with_location)
-            self._logger.info(f"Successfully created Hive database '{db_name}' at " + location_info)
+            self._logger.info(f"Successfully created Hive database '{db_name}' at {location_info}")
 
         else:
 
@@ -105,7 +105,7 @@ class HiveTableWriter(TableWriter):
                     .write\
                     .partitionBy(partition_by)
 
-            # CHECK TABLE HDFS LOCATION
+            # Check table location on HDFS
             table_path = self.get_or_else(self._dst_type, self._dst_options.table_location, None)
             df_writer_with_path = df_writer_with_partitioning if table_path is None else \
                 df_writer_with_partitioning\

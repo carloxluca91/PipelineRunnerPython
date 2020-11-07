@@ -1,8 +1,8 @@
 import logging
+import numpy as np
+
 from abc import abstractmethod, ABC
 from typing import List, Iterable, Union
-
-import numpy as np
 
 from pypeline.abstract import AbstractPipelineElement
 from pypeline.create.metadata import DateColumnMetadata, RandomColumnMetadata, TimestampColumnMetadata
@@ -50,9 +50,9 @@ class TypedColumn(AbstractPipelineElement, ABC):
     def _corrupt_with_none(self, original_data):
 
         nullable_probability: float = self._nullable_probability
-        self._logger.info(f"Corrupting original data of column '{self.name}' ({self.description}) with noneProbability = {nullable_probability}")
+        self._logger.info(f"Corrupting original data of column '{self.name}' using probability = {nullable_probability}")
         none_probabilities: Iterable[int] = self._rng.choice([0, 1], len(original_data), p=[1 - nullable_probability, nullable_probability])
-        return [original_datum if p == 0 else None for original_datum, p in zip(original_data, none_probabilities)]
+        return [original_datum if prob == 0 else None for original_datum, prob in zip(original_data, none_probabilities)]
 
     @abstractmethod
     def create(self, number_of_records: int):

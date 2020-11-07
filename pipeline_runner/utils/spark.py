@@ -2,18 +2,15 @@ import datetime
 from typing import List, Dict
 
 from pyspark.sql import DataFrame
+from pyspark.sql.types import DataType, StringType, IntegerType, LongType, DateType, TimestampType
 from pyspark.sql.types import StructType, StructField
-from pyspark.sql.types import DataType, StringType, IntegerType, DoubleType, \
-    LongType, DateType, TimestampType
 
 
 class SparkUtils:
 
     _SPARK_TYPE_MAPPING: Dict[str, DataType] = {
 
-        "string": StringType(),
         "int": IntegerType(),
-        "double": DoubleType(),
         "long": LongType(),
         "date": DateType(),
         "timestamp": TimestampType()
@@ -33,7 +30,7 @@ class SparkUtils:
     @classmethod
     def get_spark_datatype(cls, type_: str) -> DataType:
 
-        return cls._SPARK_TYPE_MAPPING[type_]
+        return cls._SPARK_TYPE_MAPPING.get(type_, StringType())
 
 
 class LogRecord:
@@ -73,8 +70,8 @@ class LogRecord:
         self.step_finish_status = step_finish_status
         self.exception_message = exception_message
 
-    @classmethod
-    def as_structype(cls) -> StructType:
+    @staticmethod
+    def as_structype() -> StructType:
 
         return StructType([StructField("application_id", StringType(), True),
                            StructField("application_name", StringType(), True),
