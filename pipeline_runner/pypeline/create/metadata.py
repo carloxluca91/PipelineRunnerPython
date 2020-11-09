@@ -1,7 +1,7 @@
 import logging
 from abc import abstractmethod, ABC
 from datetime import datetime, timedelta, date
-from typing import Dict, List, Union, Tuple, Any
+from typing import Dict, List, Union, Tuple, Any, Callable
 
 import numpy as np
 from pyspark.sql import functions, Row, SparkSession
@@ -140,6 +140,7 @@ class RandomColumnMetadata(AbstractMetadataPlusSparkSession):
         with MetadataUtils.get_or_else as get_or_else:
 
             self._embedded_values = get_or_else(data_info, "values", [])
+            self._value_type: str = get_or_else(data_info, "valueType", "str").lower()
             len_embedded_values = len(self._embedded_values)
             default_prob = 1 if len_embedded_values == 0 else [1/len_embedded_values] * len_embedded_values
             self._embedded_probs = get_or_else(data_info, "probs", default_prob)
@@ -197,4 +198,7 @@ class RandomColumnMetadata(AbstractMetadataPlusSparkSession):
             values = [r["value"] for r in values_and_probs]
             probs = [r["probability"] for r in values_and_probs]
 
-        return self._rng.choice(values, size=number_of_records, p=probs)
+        casting_function: Callable[[Any], Any] = int if self._value_type == "int" else \
+            (float if self._value_type == "double" else str)
+
+        return self._rng.choice([casting_function(v) for v in values], size=number_of_records, p=probs)

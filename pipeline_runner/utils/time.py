@@ -1,6 +1,6 @@
 import logging
-import datetime
-from typing import Union
+from datetime import datetime, date
+from typing import Union, Callable
 
 
 class TimeUtils:
@@ -33,6 +33,16 @@ class TimeUtils:
     }
 
     @classmethod
+    def _check_format(cls, date_str: str, java_format: str, time_function: Callable[[str, str], Union[datetime, date]]):
+
+        try:
+            time_function(date_str, java_format)
+        except ValueError:
+            return False
+        else:
+            return True
+
+    @classmethod
     def java_default_dt_format(cls) -> str:
         return cls._JAVA_DEFAULT_DATE_FORMAT
 
@@ -49,28 +59,38 @@ class TimeUtils:
         return cls._JAVA_TO_PYTHON_FORMAT[java_format]
 
     @classmethod
-    def to_datetime(cls, timestamp: str, java_format: str = None) -> datetime.datetime:
+    def to_datetime(cls, timestamp: str, java_format: str = None) -> datetime:
 
         java_format = java_format if java_format else cls._JAVA_DEFAULT_TIMESTAMP_FORMAT
         python_ts_format: str = cls.to_python_format(java_format)
-        return datetime.datetime.strptime(timestamp, python_ts_format)
+        return datetime.strptime(timestamp, python_ts_format)
 
     @classmethod
-    def to_date(cls, date: str, java_format: str = None) -> datetime.date:
+    def to_date(cls, date_: str, java_format: str = None) -> date:
 
         date_format = java_format if java_format else cls._JAVA_DEFAULT_DATE_FORMAT
-        return cls.to_datetime(date, date_format).date()
+        return cls.to_datetime(date_, date_format).date()
 
     @classmethod
-    def format(cls, date_or_datetime: Union[datetime.datetime, datetime.date], java_format: str = None) -> Union[str, None]:
+    def format(cls, date_or_datetime: Union[datetime, date], java_format: str = None) -> Union[str, None]:
 
         if date_or_datetime is not None:
 
             j_format: str = java_format if java_format else \
-                (cls._JAVA_DEFAULT_TIMESTAMP_FORMAT if isinstance(date_or_datetime, datetime.datetime) else cls._JAVA_DEFAULT_DATE_FORMAT)
+                (cls._JAVA_DEFAULT_TIMESTAMP_FORMAT if isinstance(date_or_datetime, datetime) else cls._JAVA_DEFAULT_DATE_FORMAT)
 
             return date_or_datetime.strftime(cls.to_python_format(j_format))
 
         else:
 
             return None
+
+    @classmethod
+    def has_date_format(cls, date_str: str) -> bool:
+
+        return cls._check_format(date_str, cls._JAVA_DEFAULT_DATE_FORMAT, cls.to_date)
+
+    @classmethod
+    def has_datetime_format(cls, datetime_str: str) -> bool:
+
+        return cls._check_format(datetime_str, cls._JAVA_DEFAULT_TIMESTAMP_FORMAT, cls.to_datetime)

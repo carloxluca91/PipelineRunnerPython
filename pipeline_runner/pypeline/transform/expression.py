@@ -7,11 +7,13 @@ from pyspark.sql import Column
 from pyspark.sql import functions
 
 from pypeline.transform.parser import ColumnExpressionParser
+from utils.spark import SparkUtils
 
 
 @unique
 class ColumnExpressions(Enum):
 
+    CAST = r"^(cast)\((\w+\(.+\)), '(\w+)'\)$", False
     CURRENT_DATE_OR_TIMESTAMP = r"^(current_date|current_timestamp)\(\)$", True
     COL = r"^(col)\('(\w+)'\)$", True
     EQUAL_OR_NOT = r"^(equal|not_equal)\((\w+\(.+\)), (\w+\(.+\))\)$", False
@@ -76,6 +78,27 @@ class AbstractColumnExpression(ABC):
 
         return None if self._match is None \
             else self._match.group(i)
+
+
+class CastExpression(AbstractColumnExpression):
+
+    def __init__(self, string: str):
+
+        super().__init__(string, ColumnExpressions.CAST)
+
+        self._casting_type: str = self.group(3)
+
+    @property
+    def casting_type(self) -> str:
+        return self._casting_type
+
+    @property
+    def to_string(self) -> str:
+        return f"{self.nested_function}.cast('{self._casting_type}')"
+
+    def transform(self, input_column: Column) -> Column:
+
+        return input_column.cast(SparkUtils.get_spark_datatype(self.casting_type))
 
 
 class EqualOrNotExpression(AbstractColumnExpression):
@@ -223,6 +246,7 @@ class TrimExpression(AbstractColumnExpression):
 
 COLUMN_EXPRESSION_DICT = {
 
+    ColumnExpressions.CAST: CastExpression,
     ColumnExpressions.EQUAL_OR_NOT: EqualOrNotExpression,
     ColumnExpressions.IS_NULL_OR_NOT: IsNullOrNotExpression,
     ColumnExpressions.LEFT_OR_RIGHT_PAD: LeftOrRightPadExpression,
