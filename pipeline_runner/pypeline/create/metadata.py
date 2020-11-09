@@ -12,14 +12,6 @@ from utils.time import TimeUtils
 T = Union[date, datetime, str, int]
 
 
-class MetadataUtils:
-
-    @staticmethod
-    def get_or_else(dict_: Dict, key: str, default):
-
-        return dict_.get(key, default) if dict_ else default
-
-
 class BaseMetadata(AbstractJsonElement, ABC):
 
     def __init__(self):
@@ -28,6 +20,10 @@ class BaseMetadata(AbstractJsonElement, ABC):
 
         self._logger = logging.getLogger(__name__)
         self._rng = np.random.RandomState()
+
+    @staticmethod
+    def get_or_else(dict_: Dict, key: str, default):
+        return dict_.get(key, default) if dict_ else default
 
 
 class AbstractMetadata(BaseMetadata, ABC):
@@ -76,7 +72,7 @@ class DateOrTimestampMetadata(AbstractMetadata):
         self._time_delta: timedelta = self._upper_bound_dtt - self._lower_bound_dtt
 
         self._as_string = as_string
-        with MetadataUtils.get_or_else as get_or_else:
+        with self.get_or_else as get_or_else:
 
             self._java_output_format = get_or_else(as_string_info, "outputFormat", default_format)
             self._corrupt_flag = get_or_else(as_string_info, "corruptFlag", False)
@@ -137,7 +133,7 @@ class RandomColumnMetadata(AbstractMetadataPlusSparkSession):
         super().__init__()
 
         self._has_embedded_data = data_origin.lower() == "embedded"
-        with MetadataUtils.get_or_else as get_or_else:
+        with self.get_or_else as get_or_else:
 
             self._embedded_values = get_or_else(data_info, "values", [])
             self._value_type: str = get_or_else(data_info, "valueType", "str").lower()

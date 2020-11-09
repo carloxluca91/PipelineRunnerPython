@@ -13,35 +13,37 @@ from utils.spark import SparkUtils
 @unique
 class ColumnExpressions(Enum):
 
-    CAST = r"^(cast)\((\w+\(.+\)), '(\w+)'\)$", False
-    CURRENT_DATE_OR_TIMESTAMP = r"^(current_date|current_timestamp)\(\)$", True
-    COL = r"^(col)\('(\w+)'\)$", True
-    EQUAL_OR_NOT = r"^(equal|not_equal)\((\w+\(.+\)), (\w+\(.+\))\)$", False
-    IS_NULL_OR_NOT = r"^(is_null|is_not_null)\((\w+\(.+\))\)$", False
-    LEFT_OR_RIGHT_PAD = r"^([l|r]pad)\((\w+\(.+\)), (\d+), '(.+)'\)$", False
-    LIT = r"^(lit)\(('?.+'?)\)$", True
-    LOWER_OR_UPPER = r"^(lower|upper)\((\w+\(.+\)))\)$", False
-    SUBSTRING = r"^(substring)\((\w+\(.+\)), (\d+), (\d+)\)$", False
-    TO_DATE_OR_TIMESTAMP = r"^(to_date|to_timestamp)\((\w+\(.+\)), '(.+)'\)$", False
-    TRIM = r"^(trim)\((\w+\(.+\))\)$", False
+    CAST = r"^(cast)\((\w+\(.*\)), '(\w+)'\)$", False, False
+    CURRENT_DATE_OR_TIMESTAMP = r"^(current_date|current_timestamp)\(\)$", True, False
+    COL = r"^(col)\('(\w+)'\)$", True, False
+    EQUAL_OR_NOT = r"^(equal|not_equal)\((\w+\(.*\)), (\w+\(.*\))\)$", False, True
+    IS_NULL_OR_NOT = r"^(is_null|is_not_null)\((\w+\(.*\))\)$", False, False
+    LEFT_OR_RIGHT_PAD = r"^([l|r]pad)\((\w+\(.*\)), (\d+), '(.+)'\)$", False, False
+    LIT = r"^(lit)\(('?.+'?)\)$", True, False
+    LOWER_OR_UPPER = r"^(lower|upper)\((\w+\(.*\)))\)$", False, False
+    SUBSTRING = r"^(substring)\((\w+\(.*\)), (\d+), (\d+)\)$", False, False
+    TO_DATE_OR_TIMESTAMP = r"^(to_date|to_timestamp)\((\w+\(.*\)), '(.+)'\)$", False, False
+    TRIM = r"^(trim)\((\w+\(.*\))\)$", False, False
 
-    def __init__(self, regex: str, is_static: bool):
+    def __init__(self, regex: str, is_static: bool, is_multi_column: bool):
 
         self._regex = regex
         self._is_static = is_static
+        self._is_multi_column = is_multi_column
 
     @property
     def regex(self) -> str:
-
         return self._regex
 
     @property
     def is_static(self) -> bool:
-
         return self._is_static
 
-    def match(self, column_expression: str):
+    @property
+    def is_multi_column(self) -> bool:
+        return self._is_multi_column
 
+    def match(self, column_expression: str):
         return re.match(self.regex, column_expression)
 
 
@@ -65,6 +67,11 @@ class AbstractColumnExpression(ABC):
     def nested_function(self) -> str:
         return self._nested_function
 
+    def group(self, i: int):
+
+        return None if self._match is None \
+            else self._match.group(i)
+
     @property
     @abstractmethod
     def to_string(self) -> str:
@@ -73,11 +80,6 @@ class AbstractColumnExpression(ABC):
     @abstractmethod
     def transform(self, input_column: Column) -> Column:
         pass
-
-    def group(self, i: int):
-
-        return None if self._match is None \
-            else self._match.group(i)
 
 
 class CastExpression(AbstractColumnExpression):
