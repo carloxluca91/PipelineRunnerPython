@@ -12,7 +12,7 @@ class SparkUtils:
     _logger = logging.getLogger(__name__)
     _SPARK_TYPE_MAPPING: Dict[str, DataType] = {
 
-        "str": StringType(),
+        "string": StringType(),
         "int": IntegerType(),
         "long": LongType(),
         "date": DateType(),

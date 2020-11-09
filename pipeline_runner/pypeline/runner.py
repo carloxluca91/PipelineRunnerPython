@@ -2,8 +2,7 @@ import logging
 from configparser import ConfigParser
 from typing import List, Dict
 
-from pyspark.sql import Row
-from pyspark.sql import functions, SparkSession
+from pyspark.sql import functions, Row, SparkSession
 
 from pypeline.pipeline import Pipeline
 from utils.json import JsonUtils

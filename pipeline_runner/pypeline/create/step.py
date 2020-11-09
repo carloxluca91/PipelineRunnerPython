@@ -1,10 +1,8 @@
 import logging
 from typing import List, Dict
 
-from pyspark.sql import DataFrame, SparkSession
-# noinspection PyProtectedMember
-from pyspark.sql.types import StructField, StructType, Row
-
+from pyspark.sql import DataFrame, Row, SparkSession
+from pyspark.sql.types import StructField, StructType
 from pypeline.abstract import AbstractStep
 from pypeline.create.column import TypedColumn
 from utils.spark import SparkUtils
@@ -44,9 +42,10 @@ class CreateStep(AbstractStep):
 
             typed_column = TypedColumn.from_dict(dict_)
             column_data.append(typed_column.create(self._number_of_records))
+            column_type: str = "int" if typed_column.column_type == "rowId".lower() else \
+                ("string" if typed_column.is_date_or_timestamp_as_string else typed_column.column_type)
 
-            # TODO: gestione date/timestamp quando 'asString'
-            struct_field = StructField(typed_column.name, SparkUtils.get_spark_datatype(typed_column.column_type), nullable=True)
+            struct_field = StructField(typed_column.name, SparkUtils.get_spark_datatype(column_type), nullable=True)
             struct_fields.append(struct_field)
             self._logger.info(f"Successfully populated column # {index} ('{typed_column.name}')")
 

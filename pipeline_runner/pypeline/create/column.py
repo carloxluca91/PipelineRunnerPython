@@ -1,22 +1,11 @@
 import logging
-from typing import List, Union, Dict, Any
+from typing import List, Dict, Any
 
 import numpy as np
 from pyspark.sql import SparkSession
 
 from pypeline.abstract import AbstractPipelineElement
-from pypeline.create.metadata import RandomColumnMetadata, DateOrTimestampMetadata, RangeColumnMetadata
-
-T = Union[DateOrTimestampMetadata,
-          RandomColumnMetadata,
-          RangeColumnMetadata]
-
-_METADATA_TYPE = {
-
-    "date": DateOrTimestampMetadata,
-    "timestamp": DateOrTimestampMetadata,
-    "range": RangeColumnMetadata
-}
+from pypeline.create.metadata import RandomColumnMetadata, DateOrTimestampMetadata
 
 
 class TypedColumn(AbstractPipelineElement):
@@ -53,6 +42,12 @@ class TypedColumn(AbstractPipelineElement):
     def column_number(self) -> int:
         return self._column_number
 
+    @property
+    def is_date_or_timestamp_as_string(self) -> bool:
+
+        return True if self.column_type in ["date", "timestamp"] and "asString" in self._metadata \
+            else False
+
     def create(self, number_of_records: int, spark_session: SparkSession) -> List[Any]:
 
         if self.column_type in ["date", "timestamp"]:
@@ -60,10 +55,9 @@ class TypedColumn(AbstractPipelineElement):
             typed_metadata = DateOrTimestampMetadata.from_dict(self._metadata)
             random_data = typed_metadata.create_data(number_of_records)
 
-        elif self.column_type == "range":
+        elif self.column_type == "rowId".lower():
 
-            typed_metadata = RangeColumnMetadata.from_dict(self._metadata)
-            random_data = typed_metadata.create_data(number_of_records)
+            random_data = list(range(1, number_of_records + 1))
 
         else:
 
@@ -73,7 +67,7 @@ class TypedColumn(AbstractPipelineElement):
         if self._nullable:
 
             nullable_probability = self._nullable_probability
-            self._logger.info(f"Corrupting data of column '{self.name}' with some None values using probability = {nullable_probability}")
+            self._logger.info(f"Corrupting data of column '{self.name}' with (approximately) 1 None value every {1/nullable_probability} sample(s)")
             none_probabilities = self._rng.choice([0, 1], len(random_data), p=[1 - nullable_probability, nullable_probability])
             return [None if prob else datum for datum, prob in zip(random_data, none_probabilities)]
 

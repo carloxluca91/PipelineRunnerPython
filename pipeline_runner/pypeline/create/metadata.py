@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, date
 from typing import Dict, List, Union, Tuple, Any
 
 import numpy as np
-from pyspark.sql import SparkSession, functions, Row
+from pyspark.sql import functions, Row, SparkSession
 
 from pypeline.abstract import AbstractJsonElement
 from utils.time import TimeUtils
@@ -94,23 +94,21 @@ class DateOrTimestampMetadata(AbstractMetadata):
         random_data: List[Union[date, datetime]] = list(map(date_or_datetime_lambda, self._rng.random_sample(number_of_records)))
 
         # If dates (or timestamps) must be converted to strings
+        type_ = "date" if is_date else "timestamp"
         if self._as_string:
 
             java_output_format: str = self._java_output_format
-            self._logger.info(f"Converting {'date' if is_date else 'timestamp'}(s) to string with format '{java_output_format}'")
             random_data: List[str] = list(map(lambda x: TimeUtils.format(x, java_output_format), random_data))
 
-            # Check if data have to be corrupted with wrong time formats
+            # Check if data must be corrupted with wrong time formats
             corrupt_flag = self._corrupt_flag
             corrupt_prob = self._corrupt_probability
             java_corrupt_format = self._java_corrupt_format
 
             if corrupt_flag and corrupt_prob and java_corrupt_format:
 
-                # If so, some dates (or timestamps), now as strings, must be converted back and forth in order to modify their string format
-                self._logger.info(f"Corrupting {'date' if is_date else 'timestamp'}(s) with "
-                                  f"prob {corrupt_prob}, "
-                                  f"format = '{java_corrupt_format}')")
+                # If so, some dates (or timestamps), now as strings, must be converted back and forth in order to modify their time format
+                self._logger.info(f"Corrupting {type_}(s) with prob {corrupt_prob}, alternative format = '{java_corrupt_format}')")
 
                 corruption_probabilities = self._rng.choice([0, 1], number_of_records, p=[1 - corrupt_prob, corrupt_prob])
 
@@ -121,14 +119,11 @@ class DateOrTimestampMetadata(AbstractMetadata):
                         else dt_or_ts
 
                 random_data: List[str] = list(map(corrupt_lambda, zip(random_data, corruption_probabilities)))
-
-            else:
-
-                self._logger.info(f"No corruption specified for column {'TODO'}")
+                self._logger.info(f"Returning data as list of strings with format {java_output_format}")
 
         else:
 
-            self._logger.info(f"Returning data as list of {'date' if is_date else 'timestamp'}(s)")
+            self._logger.info(f"Returning data as a list of {type_}(s)")
 
         return random_data
 
@@ -193,29 +188,13 @@ class RandomColumnMetadata(AbstractMetadataPlusSparkSession):
                 .collect()
 
             if len(values_and_probs) == 0:
-                value_error_msg: str = f"Unable to detect records from table '{full_table_name}' related to {related_to_info}"
 
+                value_error_msg: str = f"Unable to detect records from table '{full_table_name}' related to {related_to_info}"
                 raise ValueError(value_error_msg)
 
-            self._logger.info(f"Identified {len(values_and_probs)} row(s) related to {related_to_info}")
+            self._logger.info(f"Identified {len(values_and_probs)} row(s) within table '{full_table_name}' related to {related_to_info}")
 
             values = [r["value"] for r in values_and_probs]
             probs = [r["probability"] for r in values_and_probs]
 
         return self._rng.choice(values, size=number_of_records, p=probs)
-
-
-class RangeColumnMetadata(AbstractMetadata):
-
-    def __init__(self,
-                 start: int = 1,
-                 step: int = 1):
-
-        super().__init__()
-
-        self._start = start
-        self._step = step
-
-    def create_data(self, number_of_records: int) -> List[T]:
-
-        return list(range(self._start, step=self._step))
