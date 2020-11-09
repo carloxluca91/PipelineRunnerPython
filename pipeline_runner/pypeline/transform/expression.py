@@ -6,18 +6,22 @@ from enum import Enum, unique
 from pyspark.sql import Column
 from pyspark.sql import functions
 
+from pypeline.transform.parser import ColumnExpressionParser
+
 
 @unique
 class ColumnExpressions(Enum):
 
     CURRENT_DATE_OR_TIMESTAMP = r"^(current_date|current_timestamp)\(\)$", True
-    DF_COL = r"^(col)\('(\w+)'\)$", True
-    LEFT_OR_RIGHT_PAD = r"^([l|r]pad)\((.+\)),\s(\d+),\s'(.+)'\)$", False
-    LIT_COL = r"^(lit)\('(.+)'\)$", True
-    LOWER_OR_UPPER = r"^(lower|upper)\((.+\))\)$", False
-    SUBSTRING = r"^(substring)\((.+\)),\s(\d+),\s(\d+)\)$", False
-    TO_DATE_OR_TIMESTAMP = r"^(to_date|to_timestamp)\((.+\)), '(.+)'\)$", False
-    TRIM = r"^(trim)\((.+\))\)$", False
+    COL = r"^(col)\('(\w+)'\)$", True
+    EQUAL_OR_NOT = r"^(equal|not_equal)\((\w+\(.+\)), (\w+\(.+\))\)$", False
+    IS_NULL_OR_NOT = r"^(is_null|is_not_null)\((\w+\(.+\))\)$", False
+    LEFT_OR_RIGHT_PAD = r"^([l|r]pad)\((\w+\(.+\)), (\d+), '(.+)'\)$", False
+    LIT = r"^(lit)\(('?.+'?)\)$", True
+    LOWER_OR_UPPER = r"^(lower|upper)\((\w+\(.+\)))\)$", False
+    SUBSTRING = r"^(substring)\((\w+\(.+\)), (\d+), (\d+)\)$", False
+    TO_DATE_OR_TIMESTAMP = r"^(to_date|to_timestamp)\((\w+\(.+\)), '(.+)'\)$", False
+    TRIM = r"^(trim)\((\w+\(.+\))\)$", False
 
     def __init__(self, regex: str, is_static: bool):
 
@@ -48,8 +52,8 @@ class AbstractColumnExpression(ABC):
         self._logger = logging.getLogger(__name__)
         self._match = re.match(column_expression_regex.regex, string)
 
-        self._function_name: str = self._group(1)
-        self._nested_function: str = self._group(2)
+        self._function_name: str = self.group(1)
+        self._nested_function: str = self.group(2)
 
     @property
     def function_name(self):
@@ -68,10 +72,47 @@ class AbstractColumnExpression(ABC):
     def transform(self, input_column: Column) -> Column:
         pass
 
-    def _group(self, i: int):
+    def group(self, i: int):
 
         return None if self._match is None \
             else self._match.group(i)
+
+
+class EqualOrNotExpression(AbstractColumnExpression):
+
+    def __init__(self, string: str):
+
+        super().__init__(string, ColumnExpressions.EQUAL_OR_NOT)
+
+        self._is_equal = self.function_name == "equal"
+        self._comparison_obj: str = self.group(3)
+        self._comparison_column: Column = ColumnExpressionParser.parse_expression(self._comparison_obj)
+
+    @property
+    def to_string(self) -> str:
+        return f"{self.nested_function} {'=' if self._is_equal else '<>'} {self._comparison_obj})"
+
+    # noinspection PyTypeChecker
+    def transform(self, input_column: Column) -> Column:
+
+        return (input_column == self._comparison_column) if self._is_equal else (input_column != self._comparison_column)
+
+
+class IsNullOrNotExpression(AbstractColumnExpression):
+
+    def __init__(self, string: str):
+
+        super().__init__(string, ColumnExpressions.IS_NULL_OR_NOT)
+
+        self._is_null = self.function_name.lower() == "is_null"
+
+    @property
+    def to_string(self) -> str:
+        return f"{self.nested_function}.{'isNull' if self._is_null else 'isNotNull'}()"
+
+    def transform(self, input_column: Column) -> Column:
+
+        return input_column.isNull() if self._is_null else input_column.isNotNull
 
 
 class LeftOrRightPadExpression(AbstractColumnExpression):
@@ -80,8 +121,8 @@ class LeftOrRightPadExpression(AbstractColumnExpression):
 
         super().__init__(string, ColumnExpressions.LEFT_OR_RIGHT_PAD)
 
-        self._padding_length: int = int(self._group(3))
-        self._padding_str: str = self._group(4)
+        self._padding_length: int = int(self.group(3))
+        self._padding_str: str = self.group(4)
 
     @property
     def padding_length(self) -> int:
@@ -123,8 +164,8 @@ class SubstringExpression(AbstractColumnExpression):
 
         super().__init__(string, ColumnExpressions.SUBSTRING)
 
-        self._substring_start_index: int = int(self._group(3))
-        self._substring_length: int = int(self._group(4))
+        self._substring_start_index: int = int(self.group(3))
+        self._substring_length: int = int(self.group(4))
 
     @property
     def pos(self):
@@ -149,7 +190,7 @@ class ToDateOrTimestampExpression(AbstractColumnExpression):
 
         super().__init__(string, ColumnExpressions.TO_DATE_OR_TIMESTAMP)
 
-        self._format = self._group(3)
+        self._format = self.group(3)
 
     @property
     def format(self) -> str:
@@ -182,6 +223,8 @@ class TrimExpression(AbstractColumnExpression):
 
 COLUMN_EXPRESSION_DICT = {
 
+    ColumnExpressions.EQUAL_OR_NOT: EqualOrNotExpression,
+    ColumnExpressions.IS_NULL_OR_NOT: IsNullOrNotExpression,
     ColumnExpressions.LEFT_OR_RIGHT_PAD: LeftOrRightPadExpression,
     ColumnExpressions.LOWER_OR_UPPER: LowerOrUpperExpression,
     ColumnExpressions.SUBSTRING: SubstringExpression,

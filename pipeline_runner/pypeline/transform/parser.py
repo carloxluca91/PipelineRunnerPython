@@ -26,8 +26,8 @@ class ColumnExpressionParser:
 
         else:
 
-            df_col_match = ColumnExpressions.DF_COL.match(column_expression)
-            lit_col_match = ColumnExpressions.LIT_COL.match(column_expression)
+            df_col_match = ColumnExpressions.COL.match(column_expression)
+            lit_col_match = ColumnExpressions.LIT.match(column_expression)
             function_name = df_col_match.group(1) if df_col_match else lit_col_match.group(1)
             function_argument = df_col_match.group(2) if df_col_match else lit_col_match.group(2)
 
@@ -44,7 +44,6 @@ class ColumnExpressionParser:
         matching_column_expressions = list(filter(lambda x: x.match(column_expression), [r for r in ColumnExpressions]))
         if len(matching_column_expressions) == 0:
 
-            logger.error(f"Unable to match such column expression '{column_expression}'")
             raise ValueError(f"Unable to match column expression '{column_expression}'")
 
         else:

@@ -35,27 +35,19 @@ class TypedColumn(AbstractPipelineElement):
         return self._column_type
 
     @property
-    def nullable(self) -> bool:
-        return self._nullable
-
-    @property
-    def column_number(self) -> int:
-        return self._column_number
-
-    @property
     def is_date_or_timestamp_as_string(self) -> bool:
 
-        return True if self.column_type in ["date", "timestamp"] and "asString" in self._metadata \
+        return True if self._column_type in ["date", "timestamp"] and "asString" in self._metadata \
             else False
 
     def create(self, number_of_records: int, spark_session: SparkSession) -> List[Any]:
 
-        if self.column_type in ["date", "timestamp"]:
+        if self._column_type in ["date", "timestamp"]:
 
             typed_metadata = DateOrTimestampMetadata.from_dict(self._metadata)
             random_data = typed_metadata.create_data(number_of_records)
 
-        elif self.column_type == "rowId".lower():
+        elif self._column_type == "rowId".lower():
 
             random_data = list(range(1, number_of_records + 1))
 
