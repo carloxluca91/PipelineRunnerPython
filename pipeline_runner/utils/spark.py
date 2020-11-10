@@ -3,7 +3,7 @@ import logging
 from typing import List, Dict
 
 from pyspark.sql import DataFrame
-from pyspark.sql.types import DataType, StringType, IntegerType, LongType, DateType, TimestampType
+from pyspark.sql.types import DataType, StringType, IntegerType, LongType, DateType, TimestampType, DoubleType
 from pyspark.sql.types import StructType, StructField
 
 
@@ -15,6 +15,7 @@ class SparkUtils:
         "string": StringType(),
         "int": IntegerType(),
         "long": LongType(),
+        "double": DoubleType(),
         "date": DateType(),
         "timestamp": TimestampType()
     }
@@ -78,7 +79,7 @@ class LogRecord:
         self.exception_message = exception_message
 
     @staticmethod
-    def as_structype() -> StructType:
+    def structype() -> StructType:
 
         return StructType([StructField("application_id", StringType(), True),
                            StructField("application_name", StringType(), True),

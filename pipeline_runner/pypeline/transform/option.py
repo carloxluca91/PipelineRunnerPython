@@ -106,3 +106,31 @@ class SelectTransformationOptions(TransformationOptions):
     def columns(self):
 
         return self._columns
+
+
+class FilterTransformationOptions(TransformationOptions):
+
+    def __init__(self,
+                 transformation_type: str,
+                 input_source_id: str,
+                 main_condition: str,
+                 and_condition: str = None,
+                 or_condition: str = None):
+
+        super().__init__(transformation_type, input_source_id)
+
+        self._main_condition = main_condition
+        self._and_condition = and_condition
+        self._or_condition = or_condition
+
+    @property
+    def main_condition(self) -> str:
+        return self._main_condition
+
+    @property
+    def and_condition(self) -> str:
+        return self._and_condition
+
+    @property
+    def or_condition(self) -> str:
+        return self._or_condition

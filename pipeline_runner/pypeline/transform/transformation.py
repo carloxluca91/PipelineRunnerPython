@@ -4,12 +4,16 @@ from typing import Dict, Union
 
 from pyspark.sql import DataFrame, Column
 
-from pypeline.transform.option import DropTransformationOptions, SelectTransformationOptions, WithColumnTransformationOptions
 from pypeline.transform.parser import ColumnExpressionParser
+from pypeline.transform.option import WithColumnTransformationOptions,\
+    DropTransformationOptions,\
+    SelectTransformationOptions,\
+    FilterTransformationOptions\
 
 T = Union[WithColumnTransformationOptions,
           DropTransformationOptions,
-          SelectTransformationOptions]
+          SelectTransformationOptions,
+          FilterTransformationOptions]
 
 
 class AbstractTransformation:
@@ -47,20 +51,19 @@ class WithColumnTransformation(AbstractTransformation):
 
     def transform(self, df_dict: Dict[str, DataFrame]):
 
-        logger = self._logger
-        transformation_options = self._transformation_options
+        with self._logger as logger, self._transformation_options as options:
 
-        input_df = df_dict[transformation_options.input_source_id]
-        columns_to_add = transformation_options.columns
+            input_df = df_dict[options.input_source_id]
+            columns_to_add = options.columns
 
-        for index, column_to_add in enumerate(columns_to_add, start=1):
+            for index, column_to_add in enumerate(columns_to_add, start=1):
 
-            column: Column = ColumnExpressionParser.parse_expression(column_to_add.expression)
-            logger.info(f"Successfully parsed column expression # {index} ('{column_to_add.expression}') of transformationStep '{self.step_name}'")
-            input_df = input_df.withColumn(column_to_add.alias, column)
+                column: Column = ColumnExpressionParser.parse_expression(column_to_add.expression)
+                logger.info(f"Successfully parsed column expression # {index} ('{column_to_add.expression}') of transformationStep '{self.step_name}'")
+                input_df = input_df.withColumn(column_to_add.alias, column)
 
-        logger.info(f"Successfully parsed and added each column expression of transformationStep '{self.step_name}'")
-        return input_df
+            logger.info(f"Successfully parsed and added each column expression of transformationStep '{self.step_name}'")
+            return input_df
 
 
 class DropTransformation(AbstractTransformation):
@@ -73,18 +76,18 @@ class DropTransformation(AbstractTransformation):
 
     def transform(self, df_dict: Dict[str, DataFrame]) -> DataFrame:
 
-        logger = self._logger
-        transformation_options = self.transformation_options
-        input_df = df_dict[transformation_options.input_source_id]
-        columns_to_drop = transformation_options.columns
+        with self._logger as logger, self._transformation_options as options:
 
-        for index, column_to_drop in enumerate(columns_to_drop, start=1):
+            input_df = df_dict[options.input_source_id]
+            columns_to_drop = options.columns
 
-            logger.info(f"Dropping column # {index} ('{column_to_drop}')")
-            input_df = input_df.drop(column_to_drop)
+            for index, column_to_drop in enumerate(columns_to_drop, start=1):
 
-        logger.info(f"Successfully dropped each column of transformationStep '{self._step_name}'")
-        return input_df
+                logger.info(f"Dropping column # {index} ('{column_to_drop}')")
+                input_df = input_df.drop(column_to_drop)
+
+            logger.info(f"Successfully dropped each column of transformationStep '{self._step_name}'")
+            return input_df
 
 
 class SelectTransformation(AbstractTransformation):
@@ -97,18 +100,45 @@ class SelectTransformation(AbstractTransformation):
 
     def transform(self, df_dict: Dict[str, DataFrame]) -> DataFrame:
 
-        logger = self._logger
-        transformation_options = self.transformation_options
-        input_df = df_dict[transformation_options.input_source_id]
+        with self._logger as logger, self._transformation_options as options:
 
-        columns_to_select = []
-        for index, column_to_select in enumerate(transformation_options.columns, start=1):
+            input_df = df_dict[options.input_source_id]
 
-            column: Column = ColumnExpressionParser.parse_expression(column_to_select.expression)
-            column_with_alias = column if column_to_select.alias is None else column.alias(column_to_select.alias)
-            logger.info(f"Successfully parsed column expression # {index} ('{column_to_select.expression}') of transformationStep '{self.step_name}'")
-            columns_to_select.append(column_with_alias)
+            columns_to_select = []
+            for index, column_to_select in enumerate(options.columns, start=1):
 
-        output_df = input_df.select(*columns_to_select)
-        logger.info(f"Successfully parsed and selected each column of transformationStep '{self.step_name}'")
-        return output_df
+                column: Column = ColumnExpressionParser.parse_expression(column_to_select.expression)
+                column_with_alias = column if column_to_select.alias is None else column.alias(column_to_select.alias)
+                logger.info(f"Successfully parsed column expression # {index} ('{column_to_select.expression}') of transformationStep '{self.step_name}'")
+                columns_to_select.append(column_with_alias)
+
+            output_df = input_df.select(*columns_to_select)
+            logger.info(f"Successfully parsed and selected each column of transformationStep '{self.step_name}'")
+            return output_df
+
+
+class FilterTransformation(AbstractTransformation):
+
+    def __init__(self, step_name: str, transformation_options: Dict[str, str]):
+
+        super().__init__(step_name, FilterTransformationOptions.from_dict(transformation_options))
+
+    def transform(self, df_dict: Dict[str, DataFrame]):
+
+        with self._logger as logger, self.transformation_options as options, ColumnExpressionParser.parse_expression as parse_expression:
+
+            input_df = df_dict[options.input_source_id]
+            main_condition: Column = parse_expression(options.main_condition)
+            if options.and_condition:
+
+                and_condition: Column = parse_expression(options.and_condition)
+                logger.info(f"Successfully parsed AND condition '{options.and_condition}'")
+                main_condition = main_condition & and_condition
+
+            if options.or_condition:
+
+                or_condition: Column = parse_expression(options.or_condition)
+                logger.info(f"Successfully parsed OR condition '{options.or_condition}'")
+                main_condition = main_condition | or_condition
+
+            return input_df.filter(main_condition)

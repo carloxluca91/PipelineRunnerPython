@@ -1,26 +1,29 @@
 import logging
 import re
+
 from abc import abstractmethod, ABC
+from datetime import datetime, date
 from enum import Enum, unique
 from functools import reduce
-from typing import List
+from typing import List, Union, Tuple, Callable, Any
 
 from pyspark.sql import Column
 from pyspark.sql import functions
 
 from utils.spark import SparkUtils
+from utils.time import TimeUtils
 
 
 @unique
-class ColumnExpressions(Enum):
+class ColumnExpression(Enum):
 
     AND_OR_OR = r"^(and)\((.+\))\)$", False, True
     CAST = r"^(cast)\((\w+\(.*\)), '(\w+)'\)$", False, False
+    COL = r"^(col)\('(\w+)'\)$", True, False
+    COMPARE = r"^(equal|not_equal|gt|geq|lt|leq)\((.+)\)$", False, True
     CONCAT = r"^(concat)\((.+\))\)$", False, True
     CONCAT_WS = r"^(concat_ws)\((.+\)), '(.+)'\)$", False, True
     CURRENT_DATE_OR_TIMESTAMP = r"^(current_date|current_timestamp)\(\)$", True, False
-    COL = r"^(col)\('(\w+)'\)$", True, False
-    EQUAL_OR_NOT = r"^(equal|not_equal)\((\w+\(.*\)), (\w+\(.*\))\)$", False, True
     IS_NULL_OR_NOT = r"^(is_null|is_not_null)\((\w+\(.*\))\)$", False, False
     LEFT_OR_RIGHT_PAD = r"^([l|r]pad)\((\w+\(.*\)), (\d+), '(.+)'\)$", False, False
     LIT = r"^(lit)\(('?.+'?)\)$", True, False
@@ -51,25 +54,14 @@ class ColumnExpressions(Enum):
         return re.match(self.regex, column_expression)
 
 
-class SingleColumnExpression(ABC):
+class AbstractExpression(ABC):
 
-    def __init__(self,
-                 string: str,
-                 column_expression_regex: ColumnExpressions):
+    def __init__(self, string: str, column_expression: ColumnExpression):
 
         self._logger = logging.getLogger(__name__)
-        self._match = re.match(column_expression_regex.regex, string)
-
+        self._column_expression = column_expression
+        self._match = re.match(column_expression.regex, string)
         self._function_name: str = self.group(1)
-        self._nested_function: str = self.group(2)
-
-    @property
-    def function_name(self):
-        return self._function_name
-
-    @property
-    def nested_function(self) -> str:
-        return self._nested_function
 
     def group(self, i: int):
 
@@ -77,25 +69,57 @@ class SingleColumnExpression(ABC):
             else self._match.group(i)
 
     @property
+    def is_static(self) -> bool:
+        return self._column_expression.is_static
+
+    @property
+    def is_multi_column(self) -> bool:
+        return self._column_expression.is_multi_column
+
+    @property
+    def function_name(self):
+        return self._function_name
+
+    @property
     @abstractmethod
     def to_string(self) -> str:
         pass
+
+
+class StaticColumnExpression(AbstractExpression, ABC):
+
+    def __init__(self, string: str, column_expression: ColumnExpression):
+
+        super().__init__(string, column_expression)
+
+    @abstractmethod
+    def get_static_column(self) -> Column:
+        pass
+
+
+class SingleColumnExpression(AbstractExpression, ABC):
+
+    def __init__(self, string: str, column_expression: ColumnExpression):
+
+        super().__init__(string, column_expression)
+
+        self._nested_function: str = self.group(2)
+
+    @property
+    def nested_function(self) -> str:
+        return self._nested_function
 
     @abstractmethod
     def transform(self, input_column: Column) -> Column:
         pass
 
 
-class MultipleColumnExpression(ABC):
+class MultipleColumnExpression(AbstractExpression, ABC):
 
-    def __init__(self,
-                 string: str,
-                 column_expression_regex: ColumnExpressions):
+    def __init__(self, string: str, column_expression: ColumnExpression):
 
-        self._logger = logging.getLogger(__name__)
-        self._match = re.match(column_expression_regex.regex, string)
+        super().__init__(string, column_expression)
 
-        self._function_name: str = self.group(1)
         self._multiple_expressions_str: str = self.group(2)
 
         def split_into_list_of_expressions(s: str) -> List[str]:
@@ -112,43 +136,37 @@ class MultipleColumnExpression(ABC):
 
             return expressions
 
-        self._expressions: List[str] = split_into_list_of_expressions(self._multiple_expressions_str)
+        self._sub_expressions: List[str] = split_into_list_of_expressions(self._multiple_expressions_str)
 
     @property
-    def function_name(self):
-        return self._function_name
-
-    @property
-    def expressions(self) -> List[str]:
-        return self._expressions
-
-    def group(self, i: int):
-
-        return None if self._match is None \
-            else self._match.group(i)
-
-    @property
-    @abstractmethod
-    def to_string(self) -> str:
-        pass
+    def sub_expressions(self) -> List[str]:
+        return self._sub_expressions
 
     @abstractmethod
     def combine(self, *columns: Column) -> Column:
         pass
 
-# TODO:
-# abstract class TwoColumnExpression (will be base class for comparison expressions ;)
+
+class TwoColumnExpression(MultipleColumnExpression, ABC):
+
+    def __init__(self, string: str, column_expression: ColumnExpression):
+
+        super().__init__(string, column_expression)
+        if len(self.sub_expressions) != 2:
+
+            join_exprs: str = ", ".join(list(map(lambda x: f"'{x}'", self.sub_expressions)))
+            raise ValueError(f"Expected 2 column expressions, found {len(self.sub_expressions)} ({join_exprs})")
 
 
 class AndOrOrExpression(MultipleColumnExpression):
 
     def __init__(self, string: str):
 
-        super().__init__(string, ColumnExpressions.AND_OR_OR)
+        super().__init__(string, ColumnExpression.AND_OR_OR)
 
     @property
     def to_string(self) -> str:
-        return f" {self.function_name.upper()} ".join(self.expressions)
+        return f" {self.function_name.upper()} ".join(self.sub_expressions)
 
     def combine(self, *input_columns: Column) -> Column:
 
@@ -161,7 +179,7 @@ class CastExpression(SingleColumnExpression):
 
     def __init__(self, string: str):
 
-        super().__init__(string, ColumnExpressions.CAST)
+        super().__init__(string, ColumnExpression.CAST)
 
         self._casting_type: str = self.group(3)
 
@@ -171,22 +189,68 @@ class CastExpression(SingleColumnExpression):
 
     @property
     def to_string(self) -> str:
-        return f"{self.nested_function}.cast('{self._casting_type}')"
+        return f"{self.function_name.upper()}({self.nested_function}, '{self._casting_type}')"
 
     def transform(self, input_column: Column) -> Column:
 
         return input_column.cast(SparkUtils.get_spark_datatype(self.casting_type))
 
 
+class ColExpression(StaticColumnExpression):
+
+    def __init__(self, string: str):
+
+        super().__init__(string, ColumnExpression.COL)
+        self._column_name = self.group(2)
+
+    @property
+    def column_name(self) -> str:
+        return self._column_name
+
+    @property
+    def to_string(self) -> str:
+        return f"{self.function_name.upper()}({self.column_name})"
+
+    def get_static_column(self) -> Column:
+        return functions.col(self.column_name)
+
+
+class CompareExpression(TwoColumnExpression):
+
+    def __init__(self, string: str):
+
+        super().__init__(string, ColumnExpression.COMPARE)
+        self._comparator_dict = {
+
+            "equal": ("equal", lambda x, y: x == y),
+            "not_equal": ("not_equal", lambda x, y: x != y),
+            "gt": ("greater_than", lambda x, y: x > y),
+            "geq": ("greater_or_equal_than", lambda x, y: x >= y),
+            "lt": ("less_than", lambda x, y: x < y),
+            "leq": ("less_or_equal_than", lambda x, y: x <= y)
+        }
+
+        self._comparator: Tuple[str, Callable[[Any, Any], Any]] = self._comparator_dict[self.function_name.lower()]
+
+    @property
+    def to_string(self) -> str:
+        return f"{self.sub_expressions[0]} {self._comparator[0].upper()} {self.sub_expressions[1]}"
+
+    def combine(self, *columns: Column) -> Column:
+
+        lambda_function = self._comparator[1]
+        return lambda_function(columns[0], columns[1])
+
+
 class ConcatExpression(MultipleColumnExpression):
 
     def __init__(self, string: str):
 
-        super().__init__(string, ColumnExpressions.CONCAT)
+        super().__init__(string, ColumnExpression.CONCAT)
 
     @property
     def to_string(self) -> str:
-        return f" {self.function_name.upper()} ".join(self.expressions)
+        return f" {self.function_name.upper()} ".join(self.sub_expressions)
 
     def combine(self, *columns: Column) -> Column:
         return functions.concat(*columns)
@@ -196,7 +260,7 @@ class ConcatWsExpression(MultipleColumnExpression):
 
     def __init__(self, string: str):
 
-        super().__init__(string, ColumnExpressions.CONCAT_WS)
+        super().__init__(string, ColumnExpression.CONCAT_WS)
 
         self._separator: str = self.group(3)
 
@@ -206,46 +270,39 @@ class ConcatWsExpression(MultipleColumnExpression):
 
     @property
     def to_string(self) -> str:
-        return f" {self.function_name.upper()}({self.separator}) ".join(self.expressions)
+        return f" {self.function_name.upper()}({self.separator}) ".join(self.sub_expressions)
 
     def combine(self, *columns: Column) -> Column:
         return functions.concat_ws(self.separator, *columns)
 
 
-class EqualOrNotExpression(MultipleColumnExpression):
+class CurrentDateOrTimestampExpression(StaticColumnExpression):
 
     def __init__(self, string: str):
 
-        super().__init__(string, ColumnExpressions.EQUAL_OR_NOT)
-
-        if len(self.expressions) != 2:
-
-            joined_expressions: str = ", ".join(self.expressions)
-            raise ValueError(f"Detected a wrong number of column expressions. Should be 2, found {len(self.expressions)} ({joined_expressions})")
+        super().__init__(string, ColumnExpression.CURRENT_DATE_OR_TIMESTAMP)
 
     @property
     def to_string(self) -> str:
-        return f"{self.expressions[0]} {self.function_name.upper()} {self.expressions[1]})"
+        return f"{self.function_name.upper()}()"
 
-    # noinspection PyTypeChecker
-    def combine(self, *columns: Column) -> Column:
+    def get_static_column(self) -> Column:
 
-        is_equal = self.function_name == "equal"
-        compare_lambda = (lambda x, y: x == y) if is_equal else (lambda x, y: x != y)
-        return compare_lambda(*columns)
+        is_date = self.function_name.lower() == "current_date"
+        return functions.current_date() if is_date else functions.current_timestamp()
 
 
 class IsNullOrNotExpression(SingleColumnExpression):
 
     def __init__(self, string: str):
 
-        super().__init__(string, ColumnExpressions.IS_NULL_OR_NOT)
+        super().__init__(string, ColumnExpression.IS_NULL_OR_NOT)
 
         self._is_null = self.function_name.lower() == "is_null"
 
     @property
     def to_string(self) -> str:
-        return f"{self.nested_function}.{'isNull' if self._is_null else 'isNotNull'}()"
+        return f"{self.function_name.upper()}({self.nested_function})"
 
     def transform(self, input_column: Column) -> Column:
 
@@ -256,7 +313,7 @@ class LeftOrRightPadExpression(SingleColumnExpression):
 
     def __init__(self, string: str):
 
-        super().__init__(string, ColumnExpressions.LEFT_OR_RIGHT_PAD)
+        super().__init__(string, ColumnExpression.LEFT_OR_RIGHT_PAD)
 
         self._padding_length: int = int(self.group(3))
         self._padding_str: str = self.group(4)
@@ -271,7 +328,7 @@ class LeftOrRightPadExpression(SingleColumnExpression):
 
     @property
     def to_string(self) -> str:
-        return f"{self.function_name}({self.nested_function}, padding_length = {self.padding_length}, padding_str = '{self.padding_str}')"
+        return f"{self.function_name.upper()}({self.nested_function}, padding_length = {self.padding_length}, padding_str = '{self.padding_str}')"
 
     def transform(self, input_column: Column) -> Column:
 
@@ -279,15 +336,60 @@ class LeftOrRightPadExpression(SingleColumnExpression):
         return padding_function(input_column, len=self.padding_length, pad=self.padding_str)
 
 
+class LitExpression(StaticColumnExpression):
+
+    def __init__(self, string: str):
+
+        super().__init__(string, ColumnExpression.LIT)
+
+        self._lit_argument: str = self.group(2)
+
+    @property
+    def lit_argument(self) -> str:
+        return self._lit_argument
+
+    @property
+    def to_string(self) -> str:
+        return f"{self.function_name.upper()}({self.lit_argument})"
+
+    def get_static_column(self) -> Column:
+
+        lit_argument = self.lit_argument
+
+        if lit_argument.startswith("'") and lit_argument.endswith("'"):
+
+            # If the literal value is in quotes, it can be a date, a timestamp or a string
+            lit_argument_without_quotes: str = lit_argument[1: - 1]
+            is_date = TimeUtils.has_date_format(lit_argument_without_quotes)
+            is_timestamp = TimeUtils.has_datetime_format(lit_argument_without_quotes)
+
+            literal_info_str = lit_argument_without_quotes
+            literal_type: str = "date" if is_date else ("timestamp" if is_timestamp else "string")
+            literal_argument: Union[date, datetime, str] = TimeUtils.to_date(lit_argument_without_quotes) if is_date else \
+                (TimeUtils.to_datetime(lit_argument_without_quotes) if is_timestamp else
+                 lit_argument_without_quotes)
+
+        else:
+
+            # Otherwise, the literal value can be a double or a integer
+            is_double = re.match(r"^\d+\.\d+$", lit_argument)
+            literal_type = "double" if is_double else "int"
+            literal_info_str = lit_argument
+            literal_argument: float = float(lit_argument) if is_double else int(lit_argument)
+
+        self._logger.info(f"Detected literal value '{literal_info_str}' of type {literal_type}")
+        return functions.lit(literal_argument)
+
+
 class LowerOrUpperExpression(SingleColumnExpression):
 
     def __init__(self, string: str):
 
-        super().__init__(string, ColumnExpressions.LOWER_OR_UPPER)
+        super().__init__(string, ColumnExpression.LOWER_OR_UPPER)
 
     @property
     def to_string(self) -> str:
-        return f"{self.function_name}({self.nested_function})"
+        return f"{self.function_name.upper()}({self.nested_function})"
 
     def transform(self, input_column: Column) -> Column:
 
@@ -299,7 +401,7 @@ class SubstringExpression(SingleColumnExpression):
 
     def __init__(self, string: str):
 
-        super().__init__(string, ColumnExpressions.SUBSTRING)
+        super().__init__(string, ColumnExpression.SUBSTRING)
 
         self._substring_start_index: int = int(self.group(3))
         self._substring_length: int = int(self.group(4))
@@ -314,7 +416,7 @@ class SubstringExpression(SingleColumnExpression):
 
     @property
     def to_string(self) -> str:
-        return f"${self.function_name}({self.nested_function}, pos = '{self.pos}', length = '{self.length}')"
+        return f"${self.function_name.upper()}({self.nested_function}, pos = '{self.pos}', length = '{self.length}')"
 
     def transform(self, input_column: Column) -> Column:
 
@@ -325,7 +427,7 @@ class ToDateOrTimestampExpression(SingleColumnExpression):
 
     def __init__(self, string: str):
 
-        super().__init__(string, ColumnExpressions.TO_DATE_OR_TIMESTAMP)
+        super().__init__(string, ColumnExpression.TO_DATE_OR_TIMESTAMP)
 
         self._format = self.group(3)
 
@@ -335,7 +437,7 @@ class ToDateOrTimestampExpression(SingleColumnExpression):
 
     @property
     def to_string(self) -> str:
-        return f"{self.function_name}({self.nested_function}, format = '{self.format}')"
+        return f"{self.function_name.upper()}({self.nested_function}, format = '{self.format}')"
 
     def transform(self, input_column: Column) -> Column:
 
@@ -347,11 +449,11 @@ class TrimExpression(SingleColumnExpression):
 
     def __init__(self, string: str):
 
-        super().__init__(string, ColumnExpressions.TRIM)
+        super().__init__(string, ColumnExpression.TRIM)
 
     @property
     def to_string(self) -> str:
-        return f"{self.function_name}({self.nested_function})"
+        return f"{self.function_name.upper()}({self.nested_function})"
 
     def transform(self, input_column: Column) -> Column:
 
@@ -360,16 +462,19 @@ class TrimExpression(SingleColumnExpression):
 
 COLUMN_EXPRESSION_DICT = {
 
-    ColumnExpressions.AND_OR_OR: AndOrOrExpression,
-    ColumnExpressions.CAST: CastExpression,
-    ColumnExpressions.CONCAT: ConcatExpression,
-    ColumnExpressions.CONCAT_WS: ConcatWsExpression,
-    ColumnExpressions.EQUAL_OR_NOT: EqualOrNotExpression,
-    ColumnExpressions.IS_NULL_OR_NOT: IsNullOrNotExpression,
-    ColumnExpressions.LEFT_OR_RIGHT_PAD: LeftOrRightPadExpression,
-    ColumnExpressions.LOWER_OR_UPPER: LowerOrUpperExpression,
-    ColumnExpressions.SUBSTRING: SubstringExpression,
-    ColumnExpressions.TO_DATE_OR_TIMESTAMP: ToDateOrTimestampExpression,
-    ColumnExpressions.TRIM: TrimExpression
+    ColumnExpression.AND_OR_OR: AndOrOrExpression,
+    ColumnExpression.CAST: CastExpression,
+    ColumnExpression.COL: ColExpression,
+    ColumnExpression.COMPARE: CompareExpression,
+    ColumnExpression.CONCAT: ConcatExpression,
+    ColumnExpression.CONCAT_WS: ConcatWsExpression,
+    ColumnExpression.CURRENT_DATE_OR_TIMESTAMP: CurrentDateOrTimestampExpression,
+    ColumnExpression.IS_NULL_OR_NOT: IsNullOrNotExpression,
+    ColumnExpression.LEFT_OR_RIGHT_PAD: LeftOrRightPadExpression,
+    ColumnExpression.LIT: LitExpression,
+    ColumnExpression.LOWER_OR_UPPER: LowerOrUpperExpression,
+    ColumnExpression.SUBSTRING: SubstringExpression,
+    ColumnExpression.TO_DATE_OR_TIMESTAMP: ToDateOrTimestampExpression,
+    ColumnExpression.TRIM: TrimExpression
 
 }

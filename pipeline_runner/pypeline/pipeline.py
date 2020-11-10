@@ -154,7 +154,7 @@ class Pipeline(AbstractPipelineElement):
 
     def _write_log_records(self):
 
-        logging_dataframe = self._spark_session.createDataFrame(self._log_records, LogRecord.as_structype())
+        logging_dataframe = self._spark_session.createDataFrame(self._log_records, LogRecord.structype())
 
         self._logger.info(f"Successfully turned list of {len(self._log_records)} {LogRecord.__name__}(s) into a {DataFrame.__name__}")
         self._logger.info(f"Logging dataframe schema {SparkUtils.df_schema_tree_string(logging_dataframe)}")
