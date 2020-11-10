@@ -75,7 +75,7 @@ class Pipeline(AbstractPipelineElement):
                 elif step_type == "transform":
 
                     typed_step = TransformStep.from_dict(raw_step)
-                    transformed_df: DataFrame = typed_step.transform(self._df_dict)
+                    transformed_df: DataFrame = typed_step.combine(self._df_dict)
                     self._update_df_dict(typed_step.dataframe_id, transformed_df)
 
                 else:

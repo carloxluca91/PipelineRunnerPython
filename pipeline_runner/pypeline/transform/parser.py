@@ -1,7 +1,7 @@
 import logging
 import re
 from datetime import date, datetime
-from typing import Union
+from typing import Union, List
 
 from pyspark.sql import Column
 from pyspark.sql import functions
@@ -93,8 +93,21 @@ class ColumnExpressionParser:
 
                 matching_column_transformation = COLUMN_EXPRESSION_DICT[matching_column_expression](column_expression)
                 logger.info(f"Matched non-static expression with string representation '{matching_column_transformation.to_string}'")
+                if matching_column_expression.is_multi_column:
 
-                nested_function: str = matching_column_transformation.nested_function
-                logger.info(f"Nested function detected ('{nested_function}'). Trying to resolve it recursively")
-                return matching_column_transformation\
-                    .transform(ColumnExpressionParser.parse_expression(nested_function))
+                    input_columns: List[Column] = []
+                    for index, expression in matching_column_transformation.expressions:
+
+                        input_column: Column = ColumnExpressionParser.parse_expression(expression)
+                        input_columns.append(input_column)
+                        logger.info(f"Successfully parsed input expression # {index} ('{expression}')")
+
+                    logger.info(f"Successfully parsed each of the {len(matching_column_transformation.expressions)} input expression")
+                    return matching_column_transformation.combine(*input_columns)
+
+                else:
+
+                    nested_function: str = matching_column_transformation.nested_function
+                    logger.info(f"Nested function detected ('{nested_function}'). Trying to resolve it recursively")
+                    return matching_column_transformation\
+                        .combine(ColumnExpressionParser.parse_expression(nested_function))
