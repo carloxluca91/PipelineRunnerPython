@@ -166,6 +166,7 @@ class Pipeline(AbstractPipelineElement):
         mysql_connection = mysql.connector.connect(**JDBCUtils.get_connector_options(self._job_properties))
         self._logger.info(f"Successfully estabilished JDBC connection with default coordinates")
         JDBCUtils.create_db_if_not_exists(mysql_connection.cursor(), log_table_db_name)
+        mysql_connection.close()
 
         self._logger.info(f"Starting to insert data into table '{log_table_name_full}' using save_mode '{log_table_savemode}'")
 

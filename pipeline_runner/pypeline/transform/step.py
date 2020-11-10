@@ -4,7 +4,11 @@ from typing import Dict, Type, Union
 from pyspark.sql import DataFrame
 
 from pypeline.abstract import AbstractStep
-from pypeline.transform.transformation import WithColumnTransformation, DropTransformation, SelectTransformation
+from pypeline.transform.transformation import WithColumnTransformation, \
+    DropTransformation, \
+    SelectTransformation, \
+    FilterTransformation
+
 from utils.spark import SparkUtils
 
 _T = Union[Type[WithColumnTransformation],
@@ -15,7 +19,8 @@ _TRANSFORMATION_DICT: Dict[str, _T] = {
 
     "withColumn": WithColumnTransformation,
     "drop": DropTransformation,
-    "select": SelectTransformation
+    "select": SelectTransformation,
+    "filter": FilterTransformation
 }
 
 
