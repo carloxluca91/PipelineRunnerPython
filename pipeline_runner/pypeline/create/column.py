@@ -59,7 +59,7 @@ class TypedColumn(AbstractPipelineElement):
 
             nullable_probability = self._nullable_probability
             self._logger.info(f"Corrupting data of column '{self.name}' with (approximately) 1 None value every {1/nullable_probability} sample(s)")
-            none_probabilities = random.choices([0, 1], k=len(random_data), weights=[1 - nullable_probability, nullable_probability])
+            none_probabilities = random.choices([0, 1], k=number_of_records, weights=[1 - nullable_probability, nullable_probability])
             return [None if prob else datum for datum, prob in zip(random_data, none_probabilities)]
 
         else:

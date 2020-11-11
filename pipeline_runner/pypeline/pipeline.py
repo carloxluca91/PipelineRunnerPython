@@ -40,18 +40,13 @@ class Pipeline(AbstractPipelineElement):
     # noinspection PyBroadException
     def run(self):
 
-        def get_steps_for_key(dict_: dict, key: str) -> List[Dict[str, str]]:
-
-            return [] if key not in dict_ else dict_[key]
+        get_steps_for_key = (lambda d, k: [] if k not in d else d[k])
+        extract_step_info = (lambda x: (x["name"], x["description"], x["stepType"], x["dataframeId"]))
 
         create_steps = get_steps_for_key(self._pipeline_steps, "createSteps")
         read_steps = get_steps_for_key(self._pipeline_steps, "readSteps")
         transform_steps = get_steps_for_key(self._pipeline_steps, "transformSteps")
         write_steps = get_steps_for_key(self._pipeline_steps, "writeSteps")
-
-        def extract_step_info(step: Dict[str, str]) -> (str, str, str, str):
-
-            return step["name"], step["description"], step["stepType"], step["dataframeId"]
 
         everything_ok = True
         full_step_list = create_steps + read_steps + transform_steps + write_steps
