@@ -1,11 +1,11 @@
 import logging
+import random
 from typing import List, Dict, Any
 
-import numpy as np
 from pyspark.sql import SparkSession
 
 from pypeline.abstract import AbstractPipelineElement
-from pypeline.create.metadata import RandomColumnMetadata, DateOrTimestampMetadata
+from pypeline.create.metadata import RandomColumnMetadata, TimeColumnMetadata
 
 
 class TypedColumn(AbstractPipelineElement):
@@ -22,7 +22,6 @@ class TypedColumn(AbstractPipelineElement):
         super().__init__(name, description)
 
         self._logger = logging.getLogger(__name__)
-        self._rng = np.random.RandomState()
 
         self._column_type = column_type.lower()
         self._nullable = nullable
@@ -44,7 +43,7 @@ class TypedColumn(AbstractPipelineElement):
 
         if self._column_type in ["date", "timestamp"]:
 
-            typed_metadata = DateOrTimestampMetadata.from_dict(self._metadata)
+            typed_metadata = TimeColumnMetadata.from_dict(self._metadata)
             random_data = typed_metadata.create_data(number_of_records)
 
         elif self._column_type == "rowId".lower():
@@ -60,7 +59,7 @@ class TypedColumn(AbstractPipelineElement):
 
             nullable_probability = self._nullable_probability
             self._logger.info(f"Corrupting data of column '{self.name}' with (approximately) 1 None value every {1/nullable_probability} sample(s)")
-            none_probabilities = self._rng.choice([0, 1], len(random_data), p=[1 - nullable_probability, nullable_probability])
+            none_probabilities = random.choices([0, 1], k=len(random_data), weights=[1 - nullable_probability, nullable_probability])
             return [None if prob else datum for datum, prob in zip(random_data, none_probabilities)]
 
         else:

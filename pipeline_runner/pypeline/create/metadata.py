@@ -1,9 +1,9 @@
 import logging
+import random
 from abc import abstractmethod, ABC
 from datetime import datetime, timedelta, date
 from typing import Dict, List, Union, Tuple, Any, Callable
 
-import numpy as np
 from pyspark.sql import functions, Row, SparkSession
 
 from pypeline.abstract import AbstractJsonElement
@@ -19,7 +19,6 @@ class BaseMetadata(AbstractJsonElement, ABC):
         super().__init__()
 
         self._logger = logging.getLogger(__name__)
-        self._rng = np.random.RandomState()
 
     @staticmethod
     def get_or_else(dict_: Dict, key: str, default):
@@ -48,36 +47,56 @@ class AbstractMetadataPlusSparkSession(BaseMetadata, ABC):
         pass
 
 
-class DateOrTimestampMetadata(AbstractMetadata):
+class TimeColumnMetadata(AbstractMetadata):
 
     def __init__(self,
                  lower_bound: str,
                  upper_bound: str = None,
                  as_string: bool = False,
-                 as_string_info: Dict = None):
+                 as_string_info: Dict[str, Any] = None):
 
         super().__init__()
 
-        try:
-            TimeUtils.to_date(lower_bound)
-        except ValueError:
-            is_date = False
-        else:
-            is_date = True
-
-        self._is_date: bool = is_date
-        default_format = TimeUtils.java_default_dt_format() if is_date else TimeUtils.java_default_ts_format()
+        self._is_date: bool = TimeUtils.has_date_format(lower_bound)
+        default_format = TimeUtils.java_default_dt_format() if self._is_date else TimeUtils.java_default_ts_format()
         self._lower_bound_dtt: datetime = TimeUtils.to_datetime(lower_bound, default_format)
         self._upper_bound_dtt: datetime = datetime.now() if upper_bound is None else TimeUtils.to_datetime(upper_bound, default_format)
         self._time_delta: timedelta = self._upper_bound_dtt - self._lower_bound_dtt
-
         self._as_string = as_string
-        with self.get_or_else as get_or_else:
 
-            self._java_output_format = get_or_else(as_string_info, "outputFormat", default_format)
-            self._corrupt_flag = get_or_else(as_string_info, "corruptFlag", False)
-            self._corrupt_probability = get_or_else(as_string_info, "corruptProb", 0)
-            self._java_corrupt_format = get_or_else(as_string_info, "corruptFormat", TimeUtils.java_default_corrupt_format())
+        get_or_else_ = (lambda dict_, key, default: default if dict_ is None else self.get_or_else(dict_, key, default))
+        self._java_output_format = get_or_else_(as_string_info, "outputFormat", default_format)
+        self._corrupt_flag = get_or_else_(as_string_info, "corruptFlag", False)
+        self._corrupt_probability = get_or_else_(as_string_info, "corruptProb", 0)
+        self._java_corrupt_format = get_or_else_(as_string_info, "corruptFormat", TimeUtils.java_default_corrupt_format())
+
+    @property
+    def is_date(self) -> bool:
+        return self._is_date
+
+    @property
+    def lower_bound(self) -> datetime:
+        return self._lower_bound_dtt
+
+    @property
+    def upper_bound(self) -> datetime:
+        return self._upper_bound_dtt
+
+    @property
+    def as_string(self) -> bool:
+        return self._as_string
+
+    @property
+    def java_output_format(self) -> str:
+        return self._java_output_format
+
+    @property
+    def java_corrupt_format(self) -> str:
+        return self._java_corrupt_format
+
+    @property
+    def corrupt_flag(self) -> bool:
+        return self._corrupt_flag
 
     def create_data(self, number_of_records: int) -> List[T]:
 
@@ -87,7 +106,7 @@ class DateOrTimestampMetadata(AbstractMetadata):
 
         # Define a lambda expression depending on column type
         date_or_datetime_lambda = (lambda x: (lower_bound + time_delta * x).date()) if is_date else (lambda x: (lower_bound + time_delta * x))
-        random_data: List[Union[date, datetime]] = list(map(date_or_datetime_lambda, self._rng.random_sample(number_of_records)))
+        random_data: List[Union[date, datetime]] = list(map(date_or_datetime_lambda, [random.uniform(0, 1) for _ in range(number_of_records)]))
 
         # If dates (or timestamps) must be converted to strings
         type_ = "date" if is_date else "timestamp"
@@ -106,7 +125,7 @@ class DateOrTimestampMetadata(AbstractMetadata):
                 # If so, some dates (or timestamps), now as strings, must be converted back and forth in order to modify their time format
                 self._logger.info(f"Corrupting {type_}(s) with prob {corrupt_prob}, alternative format = '{java_corrupt_format}')")
 
-                corruption_probabilities = self._rng.choice([0, 1], number_of_records, p=[1 - corrupt_prob, corrupt_prob])
+                corruption_probabilities = random.choices([0, 1], k=number_of_records, weights=[1 - corrupt_prob, corrupt_prob])
 
                 # Function for modifying date (or timestamp) string format
                 def corrupt_lambda(t: Tuple[str, int]) -> str:
@@ -128,23 +147,39 @@ class RandomColumnMetadata(AbstractMetadataPlusSparkSession):
 
     def __init__(self,
                  data_origin: str,
-                 data_info: Dict):
+                 data_info: Dict[str, Any]):
 
         super().__init__()
 
         self._has_embedded_data = data_origin.lower() == "embedded"
-        with self.get_or_else as get_or_else:
 
-            self._embedded_values = get_or_else(data_info, "values", [])
-            self._value_type: str = get_or_else(data_info, "valueType", "str").lower()
-            len_embedded_values = len(self._embedded_values)
-            default_prob = 1 if len_embedded_values == 0 else [1/len_embedded_values] * len_embedded_values
-            self._embedded_probs = get_or_else(data_info, "probs", default_prob)
-            self._db_name = get_or_else(data_info, "dbName", None)
-            self._table_name = get_or_else(data_info, "tableName", None)
-            self._pipeline_name = get_or_else(data_info, "pipelineName", None)
-            self._dataframe_id = get_or_else(data_info, "dataframeId", None)
-            self._column_name = get_or_else(data_info, "columnName", None)
+        self._embedded_values = self.get_or_else(data_info, "values", [])
+        self._value_type: str = self.get_or_else(data_info, "valueType", "str").lower()
+
+        len_embedded_values = len(self._embedded_values)
+        default_prob = 1 if len_embedded_values == 0 else [1/len_embedded_values] * len_embedded_values
+        self._embedded_probs = self.get_or_else(data_info, "probs", default_prob)
+        self._db_name = self.get_or_else(data_info, "dbName", None)
+        self._table_name = self.get_or_else(data_info, "tableName", None)
+        self._pipeline_name = self.get_or_else(data_info, "pipelineName", None)
+        self._dataframe_id = self.get_or_else(data_info, "dataframeId", None)
+        self._column_name = self.get_or_else(data_info, "columnName", None)
+
+    @property
+    def has_embedded_data(self) -> bool:
+        return self._has_embedded_data
+
+    @property
+    def embedded_values(self):
+        return self._embedded_values
+
+    @property
+    def embedded_probs(self) -> bool:
+        return self._embedded_probs
+
+    @property
+    def value_type(self) -> str:
+        return self._value_type
 
     def create_data(self, number_of_records: int, spark_session: SparkSession) -> List[Any]:
 
@@ -194,7 +229,15 @@ class RandomColumnMetadata(AbstractMetadataPlusSparkSession):
             values = [r["value"] for r in values_and_probs]
             probs = [r["probability"] for r in values_and_probs]
 
-        casting_function: Callable[[Any], Any] = int if self._value_type == "int" else \
-            (float if self._value_type == "double" else str)
+        if len(values) != len(probs):
 
-        return self._rng.choice([casting_function(v) for v in values], size=number_of_records, p=probs)
+            raise ValueError(f"Number of provided values ({len(values)}) does not match the number of provided probs ({len(probs)})")
+
+        if sum(probs) != 1:
+
+            joined_probs = ", ".join(list(map(str, probs)))
+            raise ValueError(f"Provided probs ({joined_probs}) does not sum up to 1")
+
+        casting_function: Callable[[Any], Any] = int if self._value_type == "int" else (float if self._value_type == "double" else str)
+
+        return random.choices([casting_function(v) for v in values], k=number_of_records, weights=probs)

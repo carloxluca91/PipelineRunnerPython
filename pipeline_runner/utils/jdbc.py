@@ -8,6 +8,7 @@ from pyspark.sql import DataFrame
 class JDBCUtils:
 
     _logger = logging.getLogger(__name__)
+    _SPARK_JDBC_DEFAULT_TYPE = "text"
     _SPARK_JDBC_TYPE_MAPPING = {
 
         "string": "text",
@@ -38,10 +39,20 @@ class JDBCUtils:
             cls._logger.info(f"JDBC database '{db_name}' already exists. Thus, not much to do")
 
     @classmethod
+    def get_jdbc_type(cls, spark_type: str) -> str:
+
+        if spark_type not in cls._SPARK_JDBC_TYPE_MAPPING:
+
+            cls._logger.warning(f"Datatype '{spark_type}' not defined within _SPARK_JDBC_TYPE_MAPPING. "
+                                f"Returning default type ({cls._SPARK_JDBC_DEFAULT_TYPE})")
+
+            return cls._SPARK_JDBC_TYPE_MAPPING.get(spark_type, cls._SPARK_JDBC_DEFAULT_TYPE)
+
+    @classmethod
     def get_create_table_from_df(cls, df: DataFrame, db_name: str, table_name: str) -> str:
 
         create_table_statement: str = f"    CREATE TABLE IF NOT EXISTS {db_name}.{table_name} ( \n\n"
-        columns_definitions: List[str] = list(map(lambda x: f"      {x[0]} {cls._SPARK_JDBC_TYPE_MAPPING[x[1]]}", df.dtypes))
+        columns_definitions: List[str] = list(map(lambda x: f"      {x[0]} {cls.get_jdbc_type(x[1])}", df.dtypes))
         return create_table_statement + ",\n".join(columns_definitions) + " )"
 
     @classmethod

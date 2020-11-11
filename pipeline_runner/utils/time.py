@@ -9,7 +9,7 @@ class TimeUtils:
 
     _JAVA_DEFAULT_DATE_FORMAT = "yyyy-MM-dd"
     _JAVA_DEFAULT_TIMESTAMP_FORMAT = "yyyy-MM-dd HH:mm:ss"
-    _JAVA_DEFAULT_CORRUPT_FORMAT = "dd-MM-yy"
+    _JAVA_DEFAULT_CORRUPT_FORMAT = "dd $$ MM $$ yyyy"
     _JAVA_TO_PYTHON_FORMAT = {
 
         # Date
@@ -21,7 +21,7 @@ class TimeUtils:
         "dd/MM/yyyy": "%d/%m/%Y",
         "dd_MM_yyyy": "%d_%m_%Y",
 
-        _JAVA_DEFAULT_CORRUPT_FORMAT: "%d-%m-%y",
+        _JAVA_DEFAULT_CORRUPT_FORMAT: "%d $$ %m $$ %Y",
 
         # Timestamp
 
@@ -94,3 +94,8 @@ class TimeUtils:
     def has_datetime_format(cls, datetime_str: str) -> bool:
 
         return cls._check_format(datetime_str, cls._JAVA_DEFAULT_TIMESTAMP_FORMAT, cls.to_datetime)
+
+    @classmethod
+    def has_format(cls, date_str: str, date_format: str) -> bool:
+
+        return cls._check_format(date_str, date_format, cls.to_datetime)
