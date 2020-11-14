@@ -61,7 +61,8 @@ class WithColumnTransformation(AbstractTransformation):
             self._logger.info(f"Successfully parsed column expression # {index} ('{column_to_add.expression}')")
             if column_to_add.alias.lower() in original_df_columns:
 
-                self._logger.warning(f"Column '{column_to_add.alias}' is already defined. It will be overriden with the expression currently parsed")
+                self._logger.warning(f"Column '{column_to_add.alias}' already exists. "
+                                     f"It will be overriden with the column expression just parsed")
 
             input_df = input_df.withColumn(column_to_add.alias.lower(), column)
 

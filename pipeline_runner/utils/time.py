@@ -1,11 +1,8 @@
-import logging
 from datetime import datetime, date
 from typing import Union, Callable
 
 
 class TimeUtils:
-
-    _logger = logging.getLogger(__name__)
 
     _JAVA_DEFAULT_DATE_FORMAT = "yyyy-MM-dd"
     _JAVA_DEFAULT_TIMESTAMP_FORMAT = "yyyy-MM-dd HH:mm:ss"
@@ -24,12 +21,13 @@ class TimeUtils:
         _JAVA_DEFAULT_CORRUPT_FORMAT: "%d $$ %m $$ %Y",
 
         # Timestamp
-
         _JAVA_DEFAULT_TIMESTAMP_FORMAT: "%Y-%m-%d %H:%M:%S",
         "yyyy/MM/dd HH:mm:ss": "%Y/%m/%d %H:%M:%S",
         "dd/MM/yyyy HH:mm:ss": "%d/%m/%Y %H:%M:%S",
         "dd_MM_yyyy HH:mm:ss": "%d_%m_%Y %H:%M:%S",
-        "dd-MM-yyyy HH.mm.ss": "%d/%m/%Y %H.%M.%S"
+        "dd-MM-yyyy HH.mm.ss": "%d/%m/%Y %H.%M.%S",
+        "yyyy_MM_dd_HH": "%Y_%m_%d_%H",
+        "yyyy_MM_dd_HH_mm_ss": "%Y_%m_%d_%H_%M_%S"
     }
 
     @classmethod

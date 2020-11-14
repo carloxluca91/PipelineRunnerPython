@@ -45,6 +45,3 @@ class WriteStep(AbstractStep):
         elif isinstance(self._dst_options, JDBCTableDstOptions):
 
             JDBCTableWriter(job_properties, self._dst_options).write(df)
-
-        self._logger.info(f"Successfully written dataframe '{self.dataframe_id}'")
-        self._logger.info(f"Successfully executed write step '{self.name}'")

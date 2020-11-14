@@ -134,7 +134,7 @@ class TimeColumnMetadata(AbstractMetadata):
                         else dt_or_ts
 
                 random_data: List[str] = list(map(corrupt_lambda, zip(random_data, corruption_probabilities)))
-                self._logger.info(f"Returning data as list of strings with format {java_output_format}")
+                self._logger.info(f"Returning data as list of strings with format '{java_output_format}'")
 
         else:
 
@@ -148,8 +148,7 @@ class RandomNumberMetadata(AbstractMetadata):
     def __init__(self,
                  lower_bound: int,
                  upper_bound: int = None,
-                 output_type: str = None,
-                 as_string: bool = None):
+                 output_type: str = None):
 
         super().__init__()
 
@@ -158,8 +157,6 @@ class RandomNumberMetadata(AbstractMetadata):
         self._output_function = str if output_type is None else \
              (int if output_type.lower() == "int" else
               (float if output_type.lower() == "double" else str))
-
-        self._as_string = as_string if as_string else False
 
     def create_data(self, number_of_records: int) -> List[T]:
 
@@ -183,9 +180,7 @@ class RandomValueMetadata(AbstractMetadataPlusSparkSession):
         self._embedded_values = self.get_or_else(data, "values", [])
         self._value_type: str = self.get_or_else(data, "valueType", "str").lower()
 
-        len_embedded_values = len(self._embedded_values)
-        default_prob = 1 if len_embedded_values == 0 else [1/len_embedded_values] * len_embedded_values
-        self._embedded_probs = self.get_or_else(data, "probs", default_prob)
+        self._embedded_probs = self.get_or_else(data, "probs", [])
         self._db_name = self.get_or_else(data, "dbName", None)
         self._table_name = self.get_or_else(data, "tableName", None)
         self._pipeline_name = self.get_or_else(data, "pipelineName", None)
@@ -197,11 +192,11 @@ class RandomValueMetadata(AbstractMetadataPlusSparkSession):
         return self._has_embedded_data
 
     @property
-    def embedded_values(self):
+    def embedded_values(self) -> List[Any]:
         return self._embedded_values
 
     @property
-    def embedded_probs(self) -> bool:
+    def embedded_probs(self) -> List[Any]:
         return self._embedded_probs
 
     @property
@@ -217,7 +212,7 @@ class RandomValueMetadata(AbstractMetadataPlusSparkSession):
 
             # If values to be picked (and their probabilities) are embedded within column infos
             values = self._embedded_values
-            probs = self._embedded_probs
+            probs = self._embedded_probs if len(self._embedded_probs) else [1/len(values)] * len(values)
 
         else:
 
@@ -256,14 +251,16 @@ class RandomValueMetadata(AbstractMetadataPlusSparkSession):
             values = [r["value"] for r in values_and_probs]
             probs = [r["probability"] for r in values_and_probs]
 
+            # If one or more probabilities are undefined, set to default
+            if any(p is None for p in probs):
+
+                self._logger.warning(f"Found some undefined probability within table '{full_table_name}' for {related_to_info}")
+                self._logger.warning(f"Thus, setting value probabilities to default value (i.e. 1/n given n values")
+                probs = [1/len(values)] * len(values)
+
         if len(values) != len(probs):
 
             raise ValueError(f"Number of provided values ({len(values)}) does not match the number of provided probs ({len(probs)})")
-
-        if sum(probs) != 1:
-
-            joined_probs = ", ".join(list(map(str, probs)))
-            raise ValueError(f"Provided probs ({joined_probs}) does not sum up to 1")
 
         casting_function: Callable[[Any], Any] = int if self._value_type == "int" else (float if self._value_type == "double" else str)
 

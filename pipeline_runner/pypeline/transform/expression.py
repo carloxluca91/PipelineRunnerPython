@@ -17,40 +17,30 @@ from utils.time import TimeUtils
 @unique
 class ColumnExpression(Enum):
 
-    AND_OR_OR = r"^(and)\((.+\))\)$", False, True
-    BROUND = r"^(bround)\((.+\)), (\d+)\)$", False, False
-    CAST = r"^(cast)\((\w+\(.*\)), '(\w+)'\)$", False, False
-    COL = r"^(col)\('(\w+)'\)$", True, False
-    COMPARE = r"^(equal|not_equal|gt|geq|lt|leq)\((.+)\)$", False, True
-    CONCAT = r"^(concat)\((.+\))\)$", False, True
-    CONCAT_WS = r"^(concat_ws)\((.+\)), '(.+)'\)$", False, True
-    CURRENT_DATE_OR_TIMESTAMP = r"^(current_date|current_timestamp)\(\)$", True, False
-    IS_NULL_OR_NOT = r"^(is_null|is_not_null)\((\w+\(.*\))\)$", False, False
-    LEFT_OR_RIGHT_PAD = r"^([l|r]pad)\((\w+\(.*\)), (\d+), '(.+)'\)$", False, False
-    LIT = r"^(lit)\(('?.+'?)\)$", True, False
-    LOWER_OR_UPPER = r"^(lower|upper)\((\w+\(.*\))\)$", False, False
-    REPLACE = r"^(replace)\((.+\)), '(.+)', '(.+)'\)$", False, False
-    SUBSTRING = r"^(substring)\((\w+\(.*\)), (\d+), (\d+)\)$", False, False
-    TO_DATE_OR_TIMESTAMP = r"^(to_date|to_timestamp)\((\w+\(.*\)), '(.+)'\)$", False, False
-    TRIM = r"^(trim)\((\w+\(.*\))\)$", False, False
+    AND_OR_OR = r"^(and)\((.+\))\)$"
+    BROUND = r"^(bround)\((.+\)), (\d+)\)$"
+    CAST = r"^(cast)\((\w+\(.*\)), '(\w+)'\)$"
+    COL = r"^(col)\('(\w+)'\)$"
+    COMPARE = r"^(equal|not_equal|gt|geq|lt|leq)\((.+)\)$"
+    CONCAT = r"^(concat)\((.+\))\)$"
+    CONCAT_WS = r"^(concat_ws)\((.+\)), '(.+)'\)$"
+    CURRENT_DATE_OR_TIMESTAMP = r"^(current_date|current_timestamp)\(\)$"
+    IS_NULL_OR_NOT = r"^(is_null|is_not_null)\((\w+\(.*\))\)$"
+    LEFT_OR_RIGHT_PAD = r"^([l|r]pad)\((\w+\(.*\)), (\d+), '(.+)'\)$"
+    LIT = r"^(lit)\(('?.+'?)\)$"
+    LOWER_OR_UPPER = r"^(lower|upper)\((\w+\(.*\))\)$"
+    REPLACE = r"^(replace)\((.+\)), '(.+)', '(.+)'\)$"
+    SUBSTRING = r"^(substring)\((\w+\(.*\)), (\d+), (\d+)\)$"
+    TO_DATE_OR_TIMESTAMP = r"^(to_date|to_timestamp)\((\w+\(.*\)), '(.+)'\)$"
+    TRIM = r"^(trim)\((\w+\(.*\))\)$"
 
-    def __init__(self, regex: str, is_static: bool, is_multi_column: bool):
+    def __init__(self, regex: str):
 
         self._regex = regex
-        self._is_static = is_static
-        self._is_multi_column = is_multi_column
 
     @property
     def regex(self) -> str:
         return self._regex
-
-    @property
-    def is_static(self) -> bool:
-        return self._is_static
-
-    @property
-    def is_multi_column(self) -> bool:
-        return self._is_multi_column
 
     def match(self, column_expression: str):
         return re.match(self.regex, column_expression)
@@ -69,14 +59,6 @@ class AbstractExpression(ABC):
 
         return None if self._match is None \
             else self._match.group(i)
-
-    @property
-    def is_static(self) -> bool:
-        return self._column_expression.is_static
-
-    @property
-    def is_multi_column(self) -> bool:
-        return self._column_expression.is_multi_column
 
     @property
     def function_name(self):
@@ -191,7 +173,7 @@ class BroundExpression(SingleColumnExpression):
 
     @property
     def to_string(self) -> str:
-        return f"{self.function_name.upper()}({self.nested_function}, decimal_digits = '{self.decimal_digits}')"
+        return f"{self.function_name.upper()}({self.nested_function}, DIGITS = '{self.decimal_digits}')"
 
     def transform(self, input_column: Column) -> Column:
 
@@ -212,7 +194,7 @@ class CastExpression(SingleColumnExpression):
 
     @property
     def to_string(self) -> str:
-        return f"{self.function_name.upper()}({self.nested_function}, '{self._casting_type}')"
+        return f"{self.function_name.upper()}({self.nested_function}, DATA_TYPE = '{self._casting_type}')"
 
     def transform(self, input_column: Column) -> Column:
 
@@ -352,7 +334,7 @@ class LeftOrRightPadExpression(SingleColumnExpression):
 
     @property
     def to_string(self) -> str:
-        return f"{self.function_name.upper()}({self.nested_function}, padding_length = {self.padding_length}, padding_str = '{self.padding_str}')"
+        return f"{self.function_name.upper()}({self.nested_function}, PADDING_LENGTH = {self.padding_length}, PADDING_STR = '{self.padding_str}')"
 
     def transform(self, input_column: Column) -> Column:
 
@@ -440,7 +422,7 @@ class ReplaceExpression(SingleColumnExpression):
 
     @property
     def to_string(self) -> str:
-        return f"{self.function_name.upper()}({self.nested_function}, pattern = '{self.pattern}', replacement = '{self.replacement}')"
+        return f"{self.function_name.upper()}({self.nested_function}, PATTERN = '{self.pattern}', REPLACEMENT = '{self.replacement}')"
 
     def transform(self, input_column: Column) -> Column:
 
@@ -466,7 +448,7 @@ class SubstringExpression(SingleColumnExpression):
 
     @property
     def to_string(self) -> str:
-        return f"${self.function_name.upper()}({self.nested_function}, pos = '{self.pos}', length = '{self.length}')"
+        return f"${self.function_name.upper()}({self.nested_function}, POS = '{self.pos}', LENGTH = '{self.length}')"
 
     def transform(self, input_column: Column) -> Column:
 
@@ -487,7 +469,7 @@ class ToDateOrTimestampExpression(SingleColumnExpression):
 
     @property
     def to_string(self) -> str:
-        return f"{self.function_name.upper()}({self.nested_function}, format = '{self.format}')"
+        return f"{self.function_name.upper()}({self.nested_function}, FORMAT = '{self.format}')"
 
     def transform(self, input_column: Column) -> Column:
 
@@ -513,6 +495,7 @@ class TrimExpression(SingleColumnExpression):
 COLUMN_EXPRESSION_DICT = {
 
     ColumnExpression.AND_OR_OR: AndOrOrExpression,
+    ColumnExpression.BROUND: BroundExpression,
     ColumnExpression.CAST: CastExpression,
     ColumnExpression.COL: ColExpression,
     ColumnExpression.COMPARE: CompareExpression,

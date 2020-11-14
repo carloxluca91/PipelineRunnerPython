@@ -37,7 +37,7 @@ class CreateStep(AbstractStep):
         for index, dict_ in enumerate(sorted(self._dataframe_columns, key=lambda x: x["columnNumber"]), start=1):
 
             typed_column = TypedColumn.from_dict(dict_)
-            column_data.append(typed_column.create(self._number_of_records))
+            column_data.append(typed_column.create(self._number_of_records, spark_session))
             column_type: str = "int" if typed_column.column_type == "rowId".lower() else \
                 ("string" if typed_column.is_date_or_timestamp_as_string else typed_column.column_type)
 
@@ -51,5 +51,4 @@ class CreateStep(AbstractStep):
         spark_dataframe = spark_session.createDataFrame(data, StructType(struct_fields))
 
         self._logger.info(f"Successfully created pyspark DataFrame '{self.dataframe_id}'. Schema {SparkUtils.df_schema_tree_string(spark_dataframe)}")
-        self._logger.info(f"Successfully executed create step '{self.name}'")
         return spark_dataframe

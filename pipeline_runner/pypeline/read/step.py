@@ -45,5 +45,4 @@ class ReadStep(AbstractStep):
             df: DataFrame = HiveTableReader(job_properties, spark_session, self._src_options).read()
 
         self._logger.info(f"Successfully read dataframe '{self.dataframe_id}'. Schema {SparkUtils.df_schema_tree_string(df)}")
-        self._logger.info(f"Successfully executed read step '{self.name}'")
         return df

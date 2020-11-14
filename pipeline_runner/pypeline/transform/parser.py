@@ -3,16 +3,16 @@ from typing import List
 
 from pyspark.sql import Column
 
-from pypeline.transform.expression import COLUMN_EXPRESSION_DICT, ColumnExpression
+from pypeline.transform.expression import COLUMN_EXPRESSION_DICT, ColumnExpression, StaticColumnExpression, MultipleColumnExpression
 
 
 class ColumnExpressionParser:
 
-    _logger = logging.getLogger(__name__)
-
     @classmethod
     def parse_expression(cls, expression: str) -> Column:
-
+        
+        logger = logging.getLogger(__name__)
+        
         # Filter list of defined ColumnExpression
         matching_expressions = list(filter(lambda x: x.match(expression), [r for r in ColumnExpression]))
         if len(matching_expressions) == 0:
@@ -29,30 +29,30 @@ class ColumnExpressionParser:
             to_string_value: str = matching_expression.to_string
 
             # If it static
-            if matching_expression.is_static:
+            if isinstance(matching_expression, StaticColumnExpression):
 
-                cls._logger.info(f"Detected a static expression: '{to_string_value}'")
+                logger.info(f"Detected a static expression: '{to_string_value}'")
                 return matching_expression.get_static_column()
 
             # If it is multicolumn
-            elif matching_expression.is_multi_column:
+            elif isinstance(matching_expression, MultipleColumnExpression):
 
-                cls._logger.info(f"Detected a multi-column expression: '{to_string_value}'")
+                logger.info(f"Detected a multi-column expression: '{to_string_value}'")
                 input_columns: List[Column] = []
                 for index, sub_expression in enumerate(matching_expression.sub_expressions, start=1):
 
                     input_column: Column = ColumnExpressionParser.parse_expression(sub_expression)
                     input_columns.append(input_column)
-                    cls._logger.info(f"Successfully parsed subexpression # {index} ('{sub_expression}')")
+                    logger.info(f"Successfully parsed subexpression # {index} ('{sub_expression}')")
 
-                cls._logger.info(f"Successfully parsed each of the {len(matching_expression.sub_expressions)} subexpression(s)")
+                logger.info(f"Successfully parsed each of the {len(matching_expression.sub_expressions)} subexpression(s)")
                 return matching_expression.combine(*input_columns)
 
             # Otherwise, as a single column transformation
             else:
 
-                cls._logger.info(f"Detected a standard single-column expression: '{to_string_value}'")
-                cls._logger.info(f"Detected a nested function: '{matching_expression.nested_function}'. Trying to resolve it recursively")
+                logger.info(f"Detected a standard single-column expression: '{to_string_value}'")
+                logger.info(f"Detected a nested function: '{matching_expression.nested_function}'. Trying to resolve it recursively")
                 nested_function: str = matching_expression.nested_function
                 return matching_expression\
-                    .combine(ColumnExpressionParser.parse_expression(nested_function))
+                    .transform(ColumnExpressionParser.parse_expression(nested_function))

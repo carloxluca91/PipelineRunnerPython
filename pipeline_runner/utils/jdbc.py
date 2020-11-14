@@ -8,7 +8,11 @@ from utils.properties import CustomConfigParser
 
 class JDBCUtils:
 
-    _logger = logging.getLogger(__name__)
+    @classmethod
+    def logger(cls):
+
+        return logging.getLogger(__name__)
+
     _SPARK_JDBC_DEFAULT_TYPE = "text"
     _SPARK_JDBC_TYPE_MAPPING = {
 
@@ -22,7 +26,8 @@ class JDBCUtils:
     @classmethod
     def create_db_if_not_exists(cls, mysql_cursor, db_name: str):
 
-        cls._logger.info(f"Checking existence of JDBC database '{db_name}'")
+        logger = cls.logger()
+        logger.info(f"Checking existence of JDBC database '{db_name}'")
         mysql_cursor.execute("SHOW DATABASES")
 
         # GET LIST OF EXISTING DATABASES
@@ -31,20 +36,21 @@ class JDBCUtils:
         # CHECK IF GIVEN DATABASE ALREADY EXISTS
         if db_name.lower() not in existing_databases:
 
-            cls._logger.warning(f"JDBC database '{db_name}' does not exist yet. Attempting to create it now")
+            logger.warning(f"JDBC database '{db_name}' does not exist yet. Attempting to create it now")
             mysql_cursor.execute(f"CREATE DATABASE IF NOT EXISTS {db_name}")
-            cls._logger.info(f"Successfully created JDBC database '{db_name}'")
+            logger.info(f"Successfully created JDBC database '{db_name}'")
 
         else:
 
-            cls._logger.info(f"JDBC database '{db_name}' already exists. Thus, not much to do")
+            logger.info(f"JDBC database '{db_name}' already exists. Thus, not much to do")
 
     @classmethod
     def get_jdbc_type(cls, spark_type: str) -> str:
 
+        logger = cls.logger()
         if spark_type not in cls._SPARK_JDBC_TYPE_MAPPING:
 
-            cls._logger.warning(f"Datatype '{spark_type}' not defined within _SPARK_JDBC_TYPE_MAPPING. "
+            logger.warning(f"Datatype '{spark_type}' not defined within _SPARK_JDBC_TYPE_MAPPING. "
                                 f"Returning default type ({cls._SPARK_JDBC_DEFAULT_TYPE})")
 
             return cls._SPARK_JDBC_TYPE_MAPPING.get(spark_type, cls._SPARK_JDBC_DEFAULT_TYPE)

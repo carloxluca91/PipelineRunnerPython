@@ -9,14 +9,18 @@ from typing import Dict
 
 class JsonUtils:
 
-    _logger = logging.getLogger(__name__)
+    @classmethod
+    def logger(cls):
+
+        return logging.getLogger(__name__)
 
     @classmethod
     def load_json(cls, json_file_path: str) -> Dict:
 
+        logger = cls.logger()
         if os.path.exists(json_file_path):
 
-            cls._logger.info(f"File '{json_file_path}' exists")
+            logger.info(f"File '{json_file_path}' exists")
             with open(json_file_path, mode="r", encoding="UTF-8") as f:
                 return json.load(f)
 
