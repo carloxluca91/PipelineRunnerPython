@@ -1,6 +1,5 @@
 import logging
 from abc import ABC, abstractmethod
-from configparser import ConfigParser
 from typing import List, Union, Dict
 
 import mysql
@@ -9,12 +8,13 @@ from pyspark.sql import DataFrame, SparkSession
 
 from pypeline.write.option import HiveTableDstOptions, JDBCTableDstOptions
 from utils.jdbc import JDBCUtils
+from utils.properties import CustomConfigParser
 
 
 class AbstractWriter(ABC):
 
     def __init__(self,
-                 job_properties: ConfigParser,
+                 job_properties: CustomConfigParser,
                  dst_options: Union[HiveTableDstOptions, JDBCTableDstOptions],
                  dst_type: str):
 
@@ -23,11 +23,11 @@ class AbstractWriter(ABC):
         self._dst_options = dst_options
         self._dst_type = dst_type
 
-    def get(self, section: str, key: str):
-        return self._job_properties[section][key]
+    def get(self, key: str):
+        return self._job_properties[key]
 
-    def get_or_else(self, section: str, key: str, default_value):
-        return default_value if key is None else self.get(section, key)
+    def get_or_else(self, key: str, default_value):
+        return default_value if key is None else self.get(key)
 
     @abstractmethod
     def write(self, df: DataFrame) -> None: pass
@@ -43,7 +43,7 @@ class TableWriter(AbstractWriter, ABC):
 class HiveTableWriter(TableWriter):
 
     def __init__(self,
-                 job_properties: ConfigParser,
+                 job_properties: CustomConfigParser,
                  dst_options: HiveTableDstOptions,
                  spark_session: SparkSession):
 
@@ -56,7 +56,7 @@ class HiveTableWriter(TableWriter):
         if db_name.lower() not in existing_databases:
 
             # CHECK CREATE DATABASE PATH
-            create_db_location = self.get_or_else(self._dst_type, self._dst_options.db_location, None)
+            create_db_location = self.get_or_else(self._dst_options.db_location, None)
             create_db_statement = f"CREATE DATABASE IF NOT EXISTS {db_name}"
             create_db_statement_with_location = create_db_statement if create_db_location is None else \
                 create_db_statement + f" LOCATION '{create_db_location}'"
@@ -76,10 +76,10 @@ class HiveTableWriter(TableWriter):
         coalesce: int = self._dst_options.coalesce
         df_to_write_coalesce: DataFrame = df if coalesce is None else df.coalesce(coalesce)
 
-        db_name = self.get(self._dst_type, self._dst_options.db_name)
-        table_name = self.get(self._dst_type, self._dst_options.table_name)
-        savemode: str = self.get(self._dst_type, self._dst_options.savemode)
-        create_database = self.get_or_else(self._dst_type, self._dst_options.create_db_if_not_exists, True)
+        db_name = self.get(self._dst_options.db_name)
+        table_name = self.get(self._dst_options.table_name)
+        savemode: str = self.get(self._dst_options.savemode)
+        create_database = self.get_or_else(self._dst_options.create_db_if_not_exists, True)
 
         if create_database:
 
@@ -106,7 +106,7 @@ class HiveTableWriter(TableWriter):
                     .partitionBy(partition_by)
 
             # Check table location on HDFS
-            table_path = self.get_or_else(self._dst_type, self._dst_options.table_location, None)
+            table_path = self.get_or_else(self._dst_options.table_location, None)
             df_writer_with_path = df_writer_with_partitioning if table_path is None else \
                 df_writer_with_partitioning\
                     .option("path", table_path)
@@ -121,7 +121,7 @@ class HiveTableWriter(TableWriter):
 class JDBCTableWriter(TableWriter):
 
     def __init__(self,
-                 job_properties: ConfigParser,
+                 job_properties: CustomConfigParser,
                  dst_options: JDBCTableDstOptions,
                  dst_type: str = "jdbc"):
 
@@ -137,10 +137,10 @@ class JDBCTableWriter(TableWriter):
 
     def write(self, df: DataFrame) -> None:
 
-        db_name = self.get(self._dst_type, self._dst_options.db_name)
-        table_name = self.get(self._dst_type, self._dst_options.table_name)
-        savemode = self.get(self._dst_type, self._dst_options.savemode)
-        create_database = self.get_or_else(self._dst_type, self._dst_options.create_db_if_not_exists, True)
+        db_name = self.get(self._dst_options.db_name)
+        table_name = self.get(self._dst_options.table_name)
+        savemode = self.get(self._dst_options.savemode)
+        create_database = self.get_or_else(self._dst_options.create_db_if_not_exists, True)
         if create_database:
 
             self._create_db_if_not_exists(db_name)

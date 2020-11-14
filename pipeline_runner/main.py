@@ -1,3 +1,5 @@
+from utils.properties import CustomConfigParser
+
 if __name__ == '__main__':
 
     import argparse
@@ -14,7 +16,7 @@ if __name__ == '__main__':
         config.fileConfig(f)
 
     logger = logging.getLogger(__name__)
-    logger.info("\nSuccessfully loaded logging configuration")
+    logger.info("Successfully loaded logging configuration")
     parser = argparse.ArgumentParser()
 
     # Option -n, --name (Pipeline Name)
@@ -47,7 +49,8 @@ if __name__ == '__main__':
             job_properties_sections = ", ".join(map(lambda x: f"'{x}'", job_properties.sections()))
             logger.info(f"Successfully loaded job properties dict. Job properties sections: {job_properties_sections}")
 
-        PipelineRunner(pipeline_name, job_properties).run_pipeline()
+        custom_job_properties = CustomConfigParser(job_properties)
+        PipelineRunner(pipeline_name, custom_job_properties).run_pipeline()
 
     else:
 

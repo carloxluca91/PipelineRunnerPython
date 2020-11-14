@@ -9,7 +9,7 @@ from pyspark.sql import functions, Row, SparkSession
 from pypeline.abstract import AbstractJsonElement
 from utils.time import TimeUtils
 
-T = Union[date, datetime, str, int]
+T = Union[date, datetime, str, int, float]
 
 
 class BaseMetadata(AbstractJsonElement, ABC):
@@ -67,7 +67,7 @@ class TimeColumnMetadata(AbstractMetadata):
         get_or_else_ = (lambda dict_, key, default: default if dict_ is None else self.get_or_else(dict_, key, default))
         self._java_output_format = get_or_else_(as_string_info, "outputFormat", default_format)
         self._corrupt_flag = get_or_else_(as_string_info, "corruptFlag", False)
-        self._corrupt_probability = get_or_else_(as_string_info, "corruptProb", 0)
+        self._corrupt_probability = get_or_else_(as_string_info, "corruptProb", 0.005)
         self._java_corrupt_format = get_or_else_(as_string_info, "corruptFormat", TimeUtils.java_default_corrupt_format())
 
     @property
@@ -143,27 +143,54 @@ class TimeColumnMetadata(AbstractMetadata):
         return random_data
 
 
-class RandomColumnMetadata(AbstractMetadataPlusSparkSession):
+class RandomNumberMetadata(AbstractMetadata):
+
+    def __init__(self,
+                 lower_bound: int,
+                 upper_bound: int = None,
+                 output_type: str = None,
+                 as_string: bool = None):
+
+        super().__init__()
+
+        self._lower_bound = lower_bound
+        self._upper_bound = upper_bound
+        self._output_function = str if output_type is None else \
+             (int if output_type.lower() == "int" else
+              (float if output_type.lower() == "double" else str))
+
+        self._as_string = as_string if as_string else False
+
+    def create_data(self, number_of_records: int) -> List[T]:
+
+        delta = self._upper_bound - self._lower_bound
+        random_numbers = [random.uniform(0, 1) for _ in range(number_of_records)]
+        output_data = [self._output_function(self._lower_bound + delta * rn) for rn in random_numbers]
+        self._logger.info(f"Returning data as a list of {type(output_data[0])}(s)")
+        return output_data
+
+
+class RandomValueMetadata(AbstractMetadataPlusSparkSession):
 
     def __init__(self,
                  data_origin: str,
-                 data_info: Dict[str, Any]):
+                 data: Dict[str, Any]):
 
         super().__init__()
 
         self._has_embedded_data = data_origin.lower() == "embedded"
 
-        self._embedded_values = self.get_or_else(data_info, "values", [])
-        self._value_type: str = self.get_or_else(data_info, "valueType", "str").lower()
+        self._embedded_values = self.get_or_else(data, "values", [])
+        self._value_type: str = self.get_or_else(data, "valueType", "str").lower()
 
         len_embedded_values = len(self._embedded_values)
         default_prob = 1 if len_embedded_values == 0 else [1/len_embedded_values] * len_embedded_values
-        self._embedded_probs = self.get_or_else(data_info, "probs", default_prob)
-        self._db_name = self.get_or_else(data_info, "dbName", None)
-        self._table_name = self.get_or_else(data_info, "tableName", None)
-        self._pipeline_name = self.get_or_else(data_info, "pipelineName", None)
-        self._dataframe_id = self.get_or_else(data_info, "dataframeId", None)
-        self._column_name = self.get_or_else(data_info, "columnName", None)
+        self._embedded_probs = self.get_or_else(data, "probs", default_prob)
+        self._db_name = self.get_or_else(data, "dbName", None)
+        self._table_name = self.get_or_else(data, "tableName", None)
+        self._pipeline_name = self.get_or_else(data, "pipelineName", None)
+        self._dataframe_id = self.get_or_else(data, "dataframeId", None)
+        self._column_name = self.get_or_else(data, "columnName", None)
 
     @property
     def has_embedded_data(self) -> bool:

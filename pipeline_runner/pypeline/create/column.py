@@ -5,7 +5,7 @@ from typing import List, Dict, Any
 from pyspark.sql import SparkSession
 
 from pypeline.abstract import AbstractPipelineElement
-from pypeline.create.metadata import RandomColumnMetadata, TimeColumnMetadata
+from pypeline.create.metadata import RandomValueMetadata, TimeColumnMetadata, RandomNumberMetadata
 
 
 class TypedColumn(AbstractPipelineElement):
@@ -46,16 +46,21 @@ class TypedColumn(AbstractPipelineElement):
             typed_metadata = TimeColumnMetadata.from_dict(self._metadata)
             random_data = typed_metadata.create_data(number_of_records)
 
+        elif self._column_type in ["int", "double"]:
+
+            typed_metadata = RandomNumberMetadata.from_dict(self._metadata)
+            random_data = typed_metadata.create_data(number_of_records)
+
         elif self._column_type == "rowId".lower():
 
             random_data = list(range(1, number_of_records + 1))
 
         else:
 
-            typed_metadata = RandomColumnMetadata.from_dict(self._metadata)
+            typed_metadata = RandomValueMetadata.from_dict(self._metadata)
             random_data = typed_metadata.create_data(number_of_records, spark_session)
 
-        if self._nullable:
+        if self._nullable and self._nullable_probability:
 
             nullable_probability = self._nullable_probability
             self._logger.info(f"Corrupting data of column '{self.name}' with (approximately) 1 None value every {1/nullable_probability} sample(s)")

@@ -57,7 +57,7 @@ class TransformStep(AbstractStep):
         df: DataFrame = transformation.transform(df_dict)
         input_source_id = transformation.transformation_options.input_source_id
 
-        self._logger.info(f"Successfully transformed input dataframe '{input_source_id}' to dataframe '{self.dataframe_id}'. "
-                          f"Dataframe schema {SparkUtils.df_schema_tree_string(df)}")
+        self._logger.info(f"Successfully transformed input dataframe '{input_source_id}' into dataframe '{self.dataframe_id}'. "
+                          f"New dataframe schema {SparkUtils.df_schema_tree_string(df)}")
         self._logger.info(f"Successfully executed transform step '{self.name}'")
         return df

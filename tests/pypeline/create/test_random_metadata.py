@@ -1,7 +1,7 @@
 import unittest
 from typing import Dict, Any
 
-from pypeline.create.metadata import RandomColumnMetadata
+from pypeline.create.metadata import RandomValueMetadata
 from tests.pypeline.create.abstract import ABCTestMetadata
 
 
@@ -9,7 +9,7 @@ class TestRandomMetadata(ABCTestMetadata):
 
     def apply_test_for_dict(self, d: Dict[str, Any]):
 
-        metadata = RandomColumnMetadata.from_dict(d)
+        metadata = RandomValueMetadata.from_dict(d)
 
         # Assert if random data are expected to be embedded
         has_embedded_data = d["dataOrigin"].lower() == "embedded"

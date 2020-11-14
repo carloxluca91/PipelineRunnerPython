@@ -18,6 +18,7 @@ from utils.time import TimeUtils
 class ColumnExpression(Enum):
 
     AND_OR_OR = r"^(and)\((.+\))\)$", False, True
+    BROUND = r"^(bround)\((.+\)), (\d+)\)$", False, False
     CAST = r"^(cast)\((\w+\(.*\)), '(\w+)'\)$", False, False
     COL = r"^(col)\('(\w+)'\)$", True, False
     COMPARE = r"^(equal|not_equal|gt|geq|lt|leq)\((.+)\)$", False, True
@@ -27,7 +28,8 @@ class ColumnExpression(Enum):
     IS_NULL_OR_NOT = r"^(is_null|is_not_null)\((\w+\(.*\))\)$", False, False
     LEFT_OR_RIGHT_PAD = r"^([l|r]pad)\((\w+\(.*\)), (\d+), '(.+)'\)$", False, False
     LIT = r"^(lit)\(('?.+'?)\)$", True, False
-    LOWER_OR_UPPER = r"^(lower|upper)\((\w+\(.*\)))\)$", False, False
+    LOWER_OR_UPPER = r"^(lower|upper)\((\w+\(.*\))\)$", False, False
+    REPLACE = r"^(replace)\((.+\)), '(.+)', '(.+)'\)$", False, False
     SUBSTRING = r"^(substring)\((\w+\(.*\)), (\d+), (\d+)\)$", False, False
     TO_DATE_OR_TIMESTAMP = r"^(to_date|to_timestamp)\((\w+\(.*\)), '(.+)'\)$", False, False
     TRIM = r"^(trim)\((\w+\(.*\))\)$", False, False
@@ -175,6 +177,27 @@ class AndOrOrExpression(MultipleColumnExpression):
         return reduce(lambda_reduce_function, input_columns)
 
 
+class BroundExpression(SingleColumnExpression):
+
+    def __init__(self, string: str):
+
+        super().__init__(string, ColumnExpression.BROUND)
+
+        self._decimal_digits = int(self.group(3))
+
+    @property
+    def decimal_digits(self) -> int:
+        return self._decimal_digits
+
+    @property
+    def to_string(self) -> str:
+        return f"{self.function_name.upper()}({self.nested_function}, decimal_digits = '{self.decimal_digits}')"
+
+    def transform(self, input_column: Column) -> Column:
+
+        return functions.bround(input_column, self.decimal_digits)
+
+
 class CastExpression(SingleColumnExpression):
 
     def __init__(self, string: str):
@@ -217,18 +240,19 @@ class ColExpression(StaticColumnExpression):
 
 class CompareExpression(TwoColumnExpression):
 
+    _comparator_dict = {
+
+        "equal": ("equal", lambda x, y: x == y),
+        "not_equal": ("not_equal", lambda x, y: x != y),
+        "gt": ("greater_than", lambda x, y: x > y),
+        "geq": ("greater_or_equal_than", lambda x, y: x >= y),
+        "lt": ("less_than", lambda x, y: x < y),
+        "leq": ("less_or_equal_than", lambda x, y: x <= y)
+    }
+
     def __init__(self, string: str):
 
         super().__init__(string, ColumnExpression.COMPARE)
-        self._comparator_dict = {
-
-            "equal": ("equal", lambda x, y: x == y),
-            "not_equal": ("not_equal", lambda x, y: x != y),
-            "gt": ("greater_than", lambda x, y: x > y),
-            "geq": ("greater_or_equal_than", lambda x, y: x >= y),
-            "lt": ("less_than", lambda x, y: x < y),
-            "leq": ("less_or_equal_than", lambda x, y: x <= y)
-        }
 
         self._comparator: Tuple[str, Callable[[Any, Any], Any]] = self._comparator_dict[self.function_name.lower()]
 
@@ -397,6 +421,32 @@ class LowerOrUpperExpression(SingleColumnExpression):
         return str_function(input_column)
 
 
+class ReplaceExpression(SingleColumnExpression):
+
+    def __init__(self, string: str):
+
+        super().__init__(string, ColumnExpression.REPLACE)
+
+        self._pattern = self.group(3)
+        self._replacement = self.group(4)
+
+    @property
+    def pattern(self) -> str:
+        return self._pattern
+
+    @property
+    def replacement(self) -> str:
+        return self._replacement
+
+    @property
+    def to_string(self) -> str:
+        return f"{self.function_name.upper()}({self.nested_function}, pattern = '{self.pattern}', replacement = '{self.replacement}')"
+
+    def transform(self, input_column: Column) -> Column:
+
+        return functions.regexp_replace(input_column, self.pattern, self._replacement)
+
+
 class SubstringExpression(SingleColumnExpression):
 
     def __init__(self, string: str):
@@ -473,6 +523,7 @@ COLUMN_EXPRESSION_DICT = {
     ColumnExpression.LEFT_OR_RIGHT_PAD: LeftOrRightPadExpression,
     ColumnExpression.LIT: LitExpression,
     ColumnExpression.LOWER_OR_UPPER: LowerOrUpperExpression,
+    ColumnExpression.REPLACE: ReplaceExpression,
     ColumnExpression.SUBSTRING: SubstringExpression,
     ColumnExpression.TO_DATE_OR_TIMESTAMP: ToDateOrTimestampExpression,
     ColumnExpression.TRIM: TrimExpression

@@ -1,5 +1,4 @@
 import logging
-from configparser import ConfigParser
 from datetime import date, datetime
 from typing import List, Dict
 
@@ -14,13 +13,14 @@ from pypeline.read.step import ReadStep
 from pypeline.transform.step import TransformStep
 from pypeline.write.step import WriteStep
 from utils.jdbc import JDBCUtils
+from utils.properties import CustomConfigParser
 from utils.spark import LogRecord, SparkUtils
 
 
 class Pipeline(AbstractPipelineElement):
 
     def __init__(self,
-                 job_properties: ConfigParser,
+                 job_properties: CustomConfigParser,
                  spark_session: SparkSession,
                  name: str,
                  description: str,
@@ -70,7 +70,7 @@ class Pipeline(AbstractPipelineElement):
                 elif step_type == "transform":
 
                     typed_step = TransformStep.from_dict(raw_step)
-                    transformed_df: DataFrame = typed_step.combine(self._df_dict)
+                    transformed_df: DataFrame = typed_step.transform(self._df_dict)
                     self._update_df_dict(typed_step.dataframe_id, transformed_df)
 
                 else:
@@ -154,9 +154,10 @@ class Pipeline(AbstractPipelineElement):
         self._logger.info(f"Successfully turned list of {len(self._log_records)} {LogRecord.__name__}(s) into a {DataFrame.__name__}")
         self._logger.info(f"Logging dataframe schema {SparkUtils.df_schema_tree_string(logging_dataframe)}")
 
-        log_table_db_name = self._job_properties["jdbc"]["jdbc.default.dbName"]
-        log_table_name_full = self._job_properties["jdbc"]["jdbc.default.logTable.full"]
-        log_table_savemode = self._job_properties["jdbc"]["jdbc.default.logTable.saveMode"]
+        log_table_db_name = self._job_properties["jdbc.db.pypelineRunner.name"]
+        log_table_name = self._job_properties["jdbc.table.logTable.name"]
+        log_table_name_full = f"{log_table_db_name}.{log_table_name}"
+        log_table_savemode = self._job_properties["spark.savemode.append"]
 
         mysql_connection = mysql.connector.connect(**JDBCUtils.get_connector_options(self._job_properties))
         self._logger.info(f"Successfully estabilished JDBC connection with default coordinates")

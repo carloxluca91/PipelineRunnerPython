@@ -1,8 +1,9 @@
 import logging
-from configparser import ConfigParser
 from typing import List, Dict
 
 from pyspark.sql import DataFrame
+
+from utils.properties import CustomConfigParser
 
 
 class JDBCUtils:
@@ -56,13 +57,13 @@ class JDBCUtils:
         return create_table_statement + ",\n".join(columns_definitions) + " )"
 
     @classmethod
-    def get_connector_options(cls, job_properties: ConfigParser) -> Dict:
+    def get_connector_options(cls, job_properties: CustomConfigParser) -> Dict:
 
-        jdbc_host = job_properties["jdbc"]["jdbc.default.host"]
-        jdbc_port = job_properties["jdbc"]["jdbc.default.port"]
-        jdbc_user = job_properties["jdbc"]["jdbc.default.userName"]
-        jdbc_password = job_properties["jdbc"]["jdbc.default.passWord"]
-        jdbc_use_ssl = bool(job_properties["jdbc"]["jdbc.default.useSSL"])
+        jdbc_host = job_properties["jdbc.default.host"]
+        jdbc_port = job_properties["jdbc.default.port"]
+        jdbc_user = job_properties["jdbc.default.userName"]
+        jdbc_password = job_properties["jdbc.default.passWord"]
+        jdbc_use_ssl = bool(job_properties["jdbc.default.useSSL"])
 
         return {
 
@@ -76,7 +77,7 @@ class JDBCUtils:
 
     @classmethod
     def get_spark_writer_jdbc_options(cls,
-                                      job_properties: ConfigParser,
+                                      job_properties: CustomConfigParser,
                                       url_key: str = None,
                                       driver_key: str = None,
                                       user_key: str = None,
@@ -87,11 +88,11 @@ class JDBCUtils:
 
             return default_key if input_key is None else input_key
 
-        jdbc_url = job_properties["jdbc"][coalesce(url_key, "jdbc.default.url")]
-        jdbc_driver = job_properties["jdbc"][coalesce(driver_key, "jdbc.default.driver.className")]
-        jdbc_user = job_properties["jdbc"][coalesce(user_key, "jdbc.default.userName")]
-        jdbc_password = job_properties["jdbc"][coalesce(password_key, "jdbc.default.passWord")]
-        jdbc_use_ssl = job_properties["jdbc"][coalesce(use_ssl_key, "jdbc.default.useSSL")].lower()
+        jdbc_url = job_properties[coalesce(url_key, "jdbc.default.url")]
+        jdbc_driver = job_properties[coalesce(driver_key, "jdbc.default.driver.className")]
+        jdbc_user = job_properties[coalesce(user_key, "jdbc.default.userName")]
+        jdbc_password = job_properties[coalesce(password_key, "jdbc.default.passWord")]
+        jdbc_use_ssl = job_properties[coalesce(use_ssl_key, "jdbc.default.useSSL")].lower()
 
         return {
 

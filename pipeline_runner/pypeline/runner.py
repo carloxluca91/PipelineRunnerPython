@@ -1,18 +1,18 @@
 import logging
-from configparser import ConfigParser
 from typing import List, Dict
 
 from pyspark.sql import functions, Row, SparkSession
 
 from pypeline.pipeline import Pipeline
 from utils.json import JsonUtils
+from utils.properties import CustomConfigParser
 
 
 class PipelineRunner:
 
     def __init__(self,
                  pipeline_name: str,
-                 job_properties: ConfigParser):
+                 job_properties: CustomConfigParser):
 
         self._logger = logging.getLogger(__name__)
         self._pipeline_name = pipeline_name
@@ -31,18 +31,29 @@ class PipelineRunner:
 
     def run_pipeline(self):
 
-        default_db_name = self._job_properties["hive"]["hive.default.dbName"].lower()
+        pypeline_runner_db_name = self._job_properties["hive.db.pypelineRunner.name"].lower()
         existing_databases: List[str] = [db.name.lower() for db in self._spark_session.catalog.listDatabases()]
-        if default_db_name in existing_databases:
+        pypeline_runner_db_exists = pypeline_runner_db_name in existing_databases
 
-            # If default Hive Db exists, it's not the first time the application is run
+        pipeline_info_table_name = self._job_properties["hive.table.pipelineInfo.name"].lower()
+        pypeline_info_table_exists = pipeline_info_table_name in [
+            table.name.lower() for table in self._spark_session.catalog.listTables(pypeline_runner_db_name)] if pypeline_runner_db_exists \
+            else False
+
+        pipeline_info_table_name_full = f"{pypeline_runner_db_name}.{pipeline_info_table_name}"
+        pypeline_info_table_not_empty = self._spark_session\
+            .table(pipeline_info_table_name_full)\
+            .count() > 0
+
+        if pypeline_runner_db_exists and pypeline_info_table_exists and pypeline_info_table_not_empty:
+
+            # If Both Hive Db and table exists, it's not the first time the application is run
             # Thus, retrieve location of .json file describing the pipeline from Hive Table containing pipeline infos
 
-            pipeline_info_table_name = self._job_properties["hive"]["hive.default.pipelineInfoTable.full"]
-            self._logger.info(f"Hive db {default_db_name} exists. Looking for pipeline '{self._pipeline_name}' on table '{pipeline_info_table_name}'")
-
-            pipeline_row_list: List[Row] = self._spark_session.table(pipeline_info_table_name)\
-                .filter(functions.col("pipeline_name") == self._pipeline_name.upper())\
+            self._logger.info(f"Looking for info on pipeline '{self._pipeline_name}' on table '{pipeline_info_table_name_full}'")
+            pipeline_row_list: List[Row] = self._spark_session\
+                .table(pipeline_info_table_name_full)\
+                .filter(functions.upper(functions.col("pipeline_name")) == self._pipeline_name.upper())\
                 .select("file_name")\
                 .collect()
 
@@ -54,21 +65,25 @@ class PipelineRunner:
             else:
 
                 pipeline_file_name: str = pipeline_row_list[0]["file_name"]
-                pipeline_file_dir_path = self._job_properties["hdfs"]["pipeline.json.dir.path"]
+                pipeline_file_dir_path = self._job_properties["pipeline.json.dir.path"]
                 pipeline_file_path = f"{pipeline_file_dir_path}\\{pipeline_file_name}"
 
         else:
 
-            # Otherwise, it's the first time the application is run. Thus, run pipeline for INITIAL_LOAD independently on provided pipeline name
+            # Otherwise, it's the first time the application or something is wrong with pipeline info.
+            # Thus, run pipeline for INITIAL_LOAD independently on provided pipeline name
 
             initial_load = "INITIAL_LOAD"
-            pipeline_info_table_name = self._job_properties["hive"]["hive.default.pipelineInfoTable"]
-            self._logger.warning(f"Default Hive db ('{default_db_name}') does not exist. Thus, neither table '{pipeline_info_table_name}' does")
+            warning_message = f"Hive db '{pypeline_runner_db_name}' does not exist" if not pypeline_runner_db_exists \
+                else (f"Table '{pipeline_info_table_name_full}' does not exist" if not pypeline_info_table_exists
+                      else f"Table '{pipeline_info_table_name_full}' is empty")
+
+            self._logger.warning(warning_message)
             if self._pipeline_name != initial_load:
 
                 self._logger.warning(f"Thus, provided pipeline won't be run. Running '{initial_load}' instead")
 
-            pipeline_file_path = self._job_properties["hdfs"]["pipeline.initialLoad.json.file.path"]
+            pipeline_file_path = self._job_properties["initialLoad.json.file.path"]
 
         pipeline_input_dict: Dict = JsonUtils.load_json(pipeline_file_path)
         pipeline_input_dict["jobProperties"] = self._job_properties

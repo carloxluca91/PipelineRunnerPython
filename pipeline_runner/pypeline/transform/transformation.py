@@ -51,19 +51,22 @@ class WithColumnTransformation(AbstractTransformation):
 
     def transform(self, df_dict: Dict[str, DataFrame]):
 
-        with self._logger as logger, self._transformation_options as options:
+        input_df = df_dict[self._transformation_options.input_source_id]
+        original_df_columns = list(map(lambda x: x.lower(), input_df.columns))
+        columns_to_add = self._transformation_options.columns
 
-            input_df = df_dict[options.input_source_id]
-            columns_to_add = options.columns
+        for index, column_to_add in enumerate(columns_to_add, start=1):
 
-            for index, column_to_add in enumerate(columns_to_add, start=1):
+            column: Column = ColumnExpressionParser.parse_expression(column_to_add.expression)
+            self._logger.info(f"Successfully parsed column expression # {index} ('{column_to_add.expression}')")
+            if column_to_add.alias.lower() in original_df_columns:
 
-                column: Column = ColumnExpressionParser.parse_expression(column_to_add.expression)
-                logger.info(f"Successfully parsed column expression # {index} ('{column_to_add.expression}') of step '{self.step_name}'")
-                input_df = input_df.withColumn(column_to_add.alias, column)
+                self._logger.warning(f"Column '{column_to_add.alias}' is already defined. It will be overriden with the expression currently parsed")
 
-            logger.info(f"Successfully parsed and added each column expression of transformationStep '{self.step_name}'")
-            return input_df
+            input_df = input_df.withColumn(column_to_add.alias.lower(), column)
+
+        self._logger.info(f"Successfully parsed and added each column expression of transformationStep '{self.step_name}'")
+        return input_df
 
 
 class DropTransformation(AbstractTransformation):
@@ -109,7 +112,7 @@ class SelectTransformation(AbstractTransformation):
 
                 column: Column = ColumnExpressionParser.parse_expression(column_to_select.expression)
                 column_with_alias = column if column_to_select.alias is None else column.alias(column_to_select.alias)
-                logger.info(f"Successfully parsed column expression # {index} ('{column_to_select.expression}') of step '{self.step_name}'")
+                logger.info(f"Successfully parsed column expression # {index} ('{column_to_select.expression}')")
                 columns_to_select.append(column_with_alias)
 
             output_df = input_df.select(*columns_to_select)

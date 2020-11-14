@@ -13,8 +13,6 @@ class ColumnExpressionParser:
     @classmethod
     def parse_expression(cls, expression: str) -> Column:
 
-        logger = cls._logger
-
         # Filter list of defined ColumnExpression
         matching_expressions = list(filter(lambda x: x.match(expression), [r for r in ColumnExpression]))
         if len(matching_expressions) == 0:
@@ -33,28 +31,28 @@ class ColumnExpressionParser:
             # If it static
             if matching_expression.is_static:
 
-                logger.info(f"Detected a static expression: '{to_string_value}'")
+                cls._logger.info(f"Detected a static expression: '{to_string_value}'")
                 return matching_expression.get_static_column()
 
             # If it is multicolumn
             elif matching_expression.is_multi_column:
 
-                logger.info(f"Detected a multi-column expression: '{to_string_value}'")
+                cls._logger.info(f"Detected a multi-column expression: '{to_string_value}'")
                 input_columns: List[Column] = []
                 for index, sub_expression in enumerate(matching_expression.sub_expressions, start=1):
 
                     input_column: Column = ColumnExpressionParser.parse_expression(sub_expression)
                     input_columns.append(input_column)
-                    logger.info(f"Successfully parsed subexpression # {index} ('{sub_expression}')")
+                    cls._logger.info(f"Successfully parsed subexpression # {index} ('{sub_expression}')")
 
-                logger.info(f"Successfully parsed each of the {len(matching_expression.sub_expressions)} subexpression(s)")
+                cls._logger.info(f"Successfully parsed each of the {len(matching_expression.sub_expressions)} subexpression(s)")
                 return matching_expression.combine(*input_columns)
 
             # Otherwise, as a single column transformation
             else:
 
-                logger.info(f"Detected a standard single-column expression: '{to_string_value}'")
-                logger.info(f"Detected a nested function: '{matching_expression.nested_function}'. Trying to resolve it recursively")
+                cls._logger.info(f"Detected a standard single-column expression: '{to_string_value}'")
+                cls._logger.info(f"Detected a nested function: '{matching_expression.nested_function}'. Trying to resolve it recursively")
                 nested_function: str = matching_expression.nested_function
                 return matching_expression\
                     .combine(ColumnExpressionParser.parse_expression(nested_function))
