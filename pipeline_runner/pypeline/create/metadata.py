@@ -9,8 +9,6 @@ from pyspark.sql import functions, Row, SparkSession
 from pypeline.abstract import AbstractJsonElement
 from utils.time import TimeUtils
 
-T = Union[date, datetime, str, int, float]
-
 
 class BaseMetadata(AbstractJsonElement, ABC):
 
@@ -32,7 +30,7 @@ class AbstractMetadata(BaseMetadata, ABC):
         super().__init__()
 
     @abstractmethod
-    def create_data(self, number_of_records: int) -> List[T]:
+    def create_data(self, number_of_records: int) -> List[Any]:
         pass
 
 
@@ -43,7 +41,7 @@ class AbstractMetadataPlusSparkSession(BaseMetadata, ABC):
         super().__init__()
 
     @abstractmethod
-    def create_data(self, number_of_records: int, spark_session: SparkSession) -> List[T]:
+    def create_data(self, number_of_records: int, spark_session: SparkSession) -> List[Any]:
         pass
 
 
@@ -98,7 +96,7 @@ class TimeColumnMetadata(AbstractMetadata):
     def corrupt_flag(self) -> bool:
         return self._corrupt_flag
 
-    def create_data(self, number_of_records: int) -> List[T]:
+    def create_data(self, number_of_records: int) -> List[Any]:
 
         is_date = self._is_date
         lower_bound = self._lower_bound_dtt
@@ -154,15 +152,27 @@ class RandomNumberMetadata(AbstractMetadata):
 
         self._lower_bound = lower_bound
         self._upper_bound = upper_bound
-        self._output_function = str if output_type is None else \
-             (int if output_type.lower() == "int" else
-              (float if output_type.lower() == "double" else str))
+        self._output_function = str if output_type is None else (
+            int if output_type.lower() == "int" else (
+                float if output_type.lower() == "double" else str))
 
-    def create_data(self, number_of_records: int) -> List[T]:
+    @property
+    def lower_bound(self) -> int:
+        return self._lower_bound
+
+    @property
+    def upper_bound(self) -> int:
+        return self._upper_bound
+
+    @property
+    def output_function(self) -> Callable[[Any], Any]:
+        return self._output_function
+
+    def create_data(self, number_of_records: int) -> List[Any]:
 
         delta = self._upper_bound - self._lower_bound
         random_numbers = [random.uniform(0, 1) for _ in range(number_of_records)]
-        output_data = [self._output_function(self._lower_bound + delta * rn) for rn in random_numbers]
+        output_data = [self.output_function(self._lower_bound + delta * rn) for rn in random_numbers]
         self._logger.info(f"Returning data as a list of {type(output_data[0])}(s)")
         return output_data
 

@@ -2,10 +2,13 @@ import unittest
 from typing import Dict, Any
 
 from pypeline.create.metadata import RandomValueMetadata
-from tests.pypeline.create.abstract import ABCTestMetadata
+from tests.pypeline.create.abstract import ABCTestCreate
 
 
-class TestRandomMetadata(ABCTestMetadata):
+class TestRandomMetadata(ABCTestCreate):
+
+    _DATA_ORIGIN_EMBEDDED = ("dataOrigin", "embedded")
+    _VALUES = [1, 2, 3]
 
     def apply_test_for_dict(self, d: Dict[str, Any]):
 
@@ -48,61 +51,28 @@ class TestRandomMetadata(ABCTestMetadata):
 
     def test_embedded_with_no_exception(self):
 
-        d = {
+        data_info_tuple = ("dataInfo", {
+            "values": self._VALUES,
+            "valueType": "int"})
 
-            "dataOrigin": "embedded",
-            "dataInfo": {
-
-                "values": [1, 2, 3],
-                "valueType": "int"
-            }
-        }
-
-        self.apply_test_for_dict(d)
+        self.apply_test_for_dict(self.build_test_dict(self._DATA_ORIGIN_EMBEDDED, data_info_tuple))
 
     def test_embedded_with_different_valuetype(self):
 
-        d = {
+        data_info_tuple = ("dataInfo", {
+            "values": self._VALUES,
+            "valueType": "str"})
 
-            "dataOrigin": "embedded",
-            "dataInfo": {
-
-                "values": [1, 2, 3],
-                "valueType": "str"
-            }
-        }
-
-        self.apply_test_for_dict(d)
-
-    def test_embedded_with_exception_on_probs_sum(self):
-
-        d = {
-
-            "dataOrigin": "embedded",
-            "dataInfo": {
-
-                "values": [1, 2, 3],
-                "probs": [0.2, 0.2, 0.2],
-                "valueType": "int"
-            }
-        }
-
-        self.apply_test_for_dict(d)
+        self.apply_test_for_dict(self.build_test_dict(self._DATA_ORIGIN_EMBEDDED, data_info_tuple))
 
     def test_embedded_with_exception_on_values_and_probs_mismatch(self):
 
-        d = {
+        data_info_tuple = ("dataInfo", {
+            "values": self._VALUES,
+            "probs": [0.5, 0.5],
+            "valueType": "int"})
 
-            "dataOrigin": "embedded",
-            "dataInfo": {
-
-                "values": [1, 2, 3],
-                "probs": [0.5, 0.5],
-                "valueType": "int"
-            }
-        }
-
-        self.apply_test_for_dict(d)
+        self.apply_test_for_dict(self.build_test_dict(self._DATA_ORIGIN_EMBEDDED, data_info_tuple))
 
 
 if __name__ == '__main__':

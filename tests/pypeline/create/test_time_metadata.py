@@ -3,11 +3,20 @@ from datetime import datetime, date
 from typing import Any, Dict
 
 from pypeline.create.metadata import TimeColumnMetadata
-from tests.pypeline.create.abstract import ABCTestMetadata
+from tests.pypeline.create.abstract import ABCTestCreate
 from utils.time import TimeUtils
 
 
-class TestTimeMetadata(ABCTestMetadata):
+class TestTimeMetadata(ABCTestCreate):
+
+    _LOWER_BOUND_DT = ("lowerBound", "2020-11-01")
+    _LOWER_BOUND_TS = ("lowerBound", "2020-11-01 12:30:00")
+    _UPPER_BOUND_DT = ("upperBound", "2020-11-30")
+    _UPPER_BOUND_TS = ("upperBound", "2020-11-30 23:59:59")
+    _AS_STRING = ("asString", True)
+    _AS_STRING_INFO = ("asStringInfo", {
+                "corruptFlag": True,
+                "corruptProb": 0.1})
 
     @classmethod
     def setUpClass(cls) -> None:
@@ -59,71 +68,27 @@ class TestTimeMetadata(ABCTestMetadata):
 
     def test_simple_date(self):
 
-        d = {
-
-            "lowerBound": "2020-11-01"
-        }
-
-        self.apply_test_for_dict(d)
+        self.apply_test_for_dict(self.build_test_dict(self._LOWER_BOUND_DT))
 
     def test_date_as_string(self):
 
-        d = {
-
-            "lowerBound": "2020-11-01",
-            "asString": True
-        }
-
-        self.apply_test_for_dict(d)
+        self.apply_test_for_dict(self.build_test_dict(self._LOWER_BOUND_DT, self._AS_STRING))
 
     def test_date_as_string_with_corruption(self):
 
-        d = {
-
-            "lowerBound": "2020-11-01",
-            "upperBound": "2020-11-30",
-            "asString": True,
-            "asStringInfo": {
-                "corruptFlag": True,
-                "corruptProb": 0.1
-            }
-        }
-
-        self.apply_test_for_dict(d)
+        self.apply_test_for_dict(self.build_test_dict(self._LOWER_BOUND_DT, self._UPPER_BOUND_DT, self._AS_STRING, self._AS_STRING_INFO))
 
     def test_simple_timestamp(self):
 
-        d = {
-
-            "lowerBound": "2020-11-01 12:30:00"
-        }
-
-        self.apply_test_for_dict(d)
+        self.apply_test_for_dict(self.build_test_dict(self._LOWER_BOUND_TS))
 
     def test_timestamp_as_string(self):
 
-        d = {
-
-            "lowerBound": "2020-11-01 12:30:00",
-            "asString": True
-        }
-
-        self.apply_test_for_dict(d)
+        self.apply_test_for_dict(self.build_test_dict(self._LOWER_BOUND_TS, self._AS_STRING))
 
     def test_timestamp_as_string_with_corruption(self):
 
-        d = {
-
-            "lowerBound": "2020-11-01 12:30:00",
-            "upperBound": "2020-11-30 23:59:59",
-            "asString": True,
-            "asStringInfo": {
-                "corruptFlag": True,
-                "corruptProb": 0.1
-            }
-        }
-
-        self.apply_test_for_dict(d)
+        self.apply_test_for_dict(self.build_test_dict(self._LOWER_BOUND_TS, self._UPPER_BOUND_TS, self._AS_STRING, self._AS_STRING_INFO))
 
 
 if __name__ == '__main__':
