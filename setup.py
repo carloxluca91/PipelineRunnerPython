@@ -17,7 +17,7 @@ class BuildPy(build_py_orig):
 setup(
 
     name="pypelineRunner",
-    version="0.0.1",
+    version="0.0.2",
     author="Luca Carloni",
     author_email="carloni.luca91@gmail.com",
     url="https://github.com/carloxluca91/PipelineRunnerPython.git",
